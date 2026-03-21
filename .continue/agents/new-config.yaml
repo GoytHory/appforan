@@ -1,0 +1,16 @@
+name: appforan-config
+version: 1.0.0
+schema: v1
+
+# Список доступных моделей
+models:
+  - name: Gemini 1.5 Flash
+    provider: google
+    model: gemini-1.5-flash
+    apiKey: AIzaSyBEwitQeGK_VabH-g0HMU2I9ulqIC2e3eM
+
+# Контекстные провайдеры (инструменты для ИИ)
+context:
+  - uses: codebase
+  - uses: files
+  - uses: terminal

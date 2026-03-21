@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "androidStatusBar": {
+      "backgroundColor": "#272d31",
+      "barStyle": "dark-content"
+    },
+    "name": "appforan",
+    "slug": "appforan_v2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#272d31"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#272d31",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.goyt.appforan"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "683dda8b-e18d-415a-8bdf-39561a4f6108"
+      }
+    }
+  }
+}

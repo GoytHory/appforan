@@ -1,0 +1,4 @@
+{
+    "github.copilot.chat.alternateGeminiModelFPrompt.enabled": false,
+    "github.copilot.chat.anthropic.contextEditing.mode": "off"
+}
