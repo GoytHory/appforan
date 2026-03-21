@@ -259,7 +259,7 @@ export interface User {
  * Тип возвращаемого значения для хука useAuth.
  * Мы меняем myUsername (строку) на myUser (объект или null).
  */
-export interface UseAuthReturnType {
+export interface UseAuthUserReturnType {
   myUser: User | null;                         // Весь объект пользователя или ничего
   setMyUser: (user: User | null) => void;      // Функция для ручного изменения
   isLoading: boolean;                          // Состояние загрузки

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UseAuthReturnType } from '../types'; // Импорт типов
 
-/**
+/** //
  * useAuth — кастомный хук для управления аутентификацией.
  * 
  * ЧТО ДЕЛАЕТ:
