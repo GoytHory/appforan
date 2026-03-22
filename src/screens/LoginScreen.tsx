@@ -20,6 +20,10 @@ import { LoginScreenProps } from '../types';
 const LoginScreen: FC<LoginScreenProps> = ({ onLogin }) => {
   // Состояние: имя, введённое пользователем
   const [tempName, setTempName] = useState<string>("");
+  const [password, setPassword] = useState<string>('');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [errorText, setErrorText] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   /**
    * Обработчик нажатия на кнопку "ВОЙТИ В ЧАТ"
@@ -29,11 +33,28 @@ const LoginScreen: FC<LoginScreenProps> = ({ onLogin }) => {
    * 2. Очищает от лишних пробелов (trim())
    * 3. Вызывает функцию onLogin
    */
-  const handlePress = (): void => {
+  const handlePress = async (): Promise<void> => {
+    setErrorText('');
+
     // Проверяем, что имя содержит хотя бы один символ (не только пробелы)
-    if (tempName.trim().length > 0) {
-      // Вызываем функцию логина с очищенным именем
-      onLogin(tempName.trim());
+    if (tempName.trim().length < 3) {
+      setErrorText('Имя должно быть минимум 3 символа');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorText('Пароль должен быть минимум 6 символов');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onLogin(tempName.trim(), password, mode);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Ошибка авторизации';
+      setErrorText(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -49,11 +70,41 @@ const LoginScreen: FC<LoginScreenProps> = ({ onLogin }) => {
         placeholderTextColor="#999"
         value={tempName}                          // Текущее значение
         onChangeText={setTempName}                // Функция при изменении
+        autoCapitalize="none"
       />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Пароль..."
+        placeholderTextColor="#999"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+      />
+
+      {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
+
+      <View style={styles.switcher}>
+        <TouchableOpacity
+          onPress={() => setMode('login')}
+          style={[styles.modeBtn, mode === 'login' && styles.modeBtnActive]}
+        >
+          <Text style={styles.modeBtnText}>Вход</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setMode('register')}
+          style={[styles.modeBtn, mode === 'register' && styles.modeBtnActive]}
+        >
+          <Text style={styles.modeBtnText}>Регистрация</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Кнопка входа */}
       <TouchableOpacity onPress={handlePress} style={styles.button}>
-        <Text style={styles.buttonText}>ВОЙТИ В ЧАТ</Text>
+        <Text style={styles.buttonText}>
+          {isSubmitting ? 'Загрузка...' : mode === 'login' ? 'ВОЙТИ В ЧАТ' : 'СОЗДАТЬ АККАУНТ'}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -79,6 +130,33 @@ const styles = StyleSheet.create({
     padding: 15,                                  // Внутренний отступ
     borderRadius: 10,                             // Закруглённые углы
     marginBottom: 20,                             // Отступ снизу
+  },
+  error: {
+    width: '80%',
+    color: '#ff8080',
+    marginBottom: 12,
+  },
+  switcher: {
+    flexDirection: 'row',
+    width: '80%',
+    gap: 10,
+    marginBottom: 16,
+  },
+  modeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#555',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modeBtnActive: {
+    backgroundColor: '#2f3a40',
+    borderColor: COLORS.myBubble,
+  },
+  modeBtnText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   button: {
     backgroundColor: COLORS.myBubble,

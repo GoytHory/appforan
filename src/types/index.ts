@@ -136,7 +136,7 @@ export interface SocketEventPayload {
  * - onLogin: функция, которая вызывается при входе, принимает имя и возвращает Promise
  */
 export interface LoginScreenProps {
-  onLogin: (name: string) => Promise<void>;
+  onLogin: (name: string, password: string, mode: 'login' | 'register') => Promise<void>;
 }
 
 /**
@@ -214,7 +214,7 @@ export interface UseAuthReturnType {
   myUsername: string;                       // Текущее имя пользователя
   setMyUsername: (name: string) => void;    // Функция изменения
   isLoading: boolean;                       // Загружается ли данные
-  handleLogin: (name: string) => Promise<void>;  // Функция логина
+  handleLogin: (name: string, password: string, mode: 'login' | 'register') => Promise<void>;  // Функция логина
 }
 
 /**

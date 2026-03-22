@@ -2,7 +2,6 @@ import React, { FC, useRef } from "react";
 import { StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { BottomProps } from '../types';
-import { sendTestUser } from '../utils/api'; 
 
 /**
  * Bottom — компонент нижней панели для ввода сообщений.

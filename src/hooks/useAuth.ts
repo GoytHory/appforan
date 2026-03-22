@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UseAuthReturnType } from '../types'; // Импорт типов
+import { getMe, loginUser, registerUser } from '../utils/api';
 
 /** //
  * useAuth — кастомный хук для управления аутентификацией.
@@ -35,12 +36,20 @@ export function useAuth(): UseAuthReturnType {
     // Асинхронная функция для загрузки имени
     const initAuth = async (): Promise<void> => {
       try {
-        // Получаем сохранённое имя из локального хранилища (AsyncStorage)
-        // getItem возвращает строку или null, если ключ не найден
-        const savedName = await AsyncStorage.getItem('user_name');
+        const [savedName, savedToken] = await Promise.all([
+          AsyncStorage.getItem('user_name'),
+          AsyncStorage.getItem('auth_token')
+        ]);
 
-        // Если имя есть (не null), устанавливаем его в состояние
-        if (savedName) {
+        if (savedName && savedToken) {
+          try {
+            const { user } = await getMe(savedToken);
+            setMyUsername(user.username);
+          } catch {
+            await AsyncStorage.multiRemove(['user_name', 'auth_token']);
+            setMyUsername('');
+          }
+        } else if (savedName) {
           setMyUsername(savedName);
         }
       } catch (e) {
@@ -66,16 +75,23 @@ export function useAuth(): UseAuthReturnType {
    * 1. Сохраняет имя в AsyncStorage (локальное хранилище)
    * 2. Обновляет состояние (myUsername)
    */
-  const handleLogin = async (name: string): Promise<void> => {
+  const handleLogin = async (name: string, password: string, mode: 'login' | 'register'): Promise<void> => {
     try {
-      // Сохраняем имя в хранилище под ключом 'user_name'
-      await AsyncStorage.setItem('user_name', name);
+      const authResponse = mode === 'register'
+        ? await registerUser(name, password)
+        : await loginUser(name, password);
+
+      await AsyncStorage.multiSet([
+        ['user_name', authResponse.user.username],
+        ['auth_token', authResponse.token]
+      ]);
 
       // Обновляем состояние приложения
-      setMyUsername(name);
+      setMyUsername(authResponse.user.username);
     } catch (e) {
       // Если сохранение не удалось
       console.log("Ошибка логина:", e);
+      throw e;
     }
   };
 

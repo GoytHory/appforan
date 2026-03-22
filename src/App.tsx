@@ -1,5 +1,5 @@
-import React, { FC, useEffect } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native'; // Добавили Platform
+import React, { FC } from 'react';
+import { View, ActivityIndicator } from 'react-native'; // Добавили Platform
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'; // Добавили сейф-зоны
 import LoginScreen from './screens/LoginScreen';
 import MainScreen from './components/MainScreen';
@@ -8,15 +8,8 @@ import { useNotifications } from './hooks/useNotifications';
 import { useChats } from './hooks/useChats';
 import { useKeyboard } from './hooks/useKeyboard';
 import { COLORS } from './constants/colors';
-import { sendTestUser } from './utils/api'; 
 
 const AppContent: FC = () => {
-  // Твоя логика теста
-  useEffect(() => {
-    console.log("=== ПРИЛОЖЕНИЕ ЗАПУЩЕНО: ОТПРАВЛЯЮ ТЕСТОВОГО ЮЗЕРА ===");
-    sendTestUser("TechnoShaman");
-  }, []);
-
   const { myUsername, setMyUsername, isLoading, handleLogin } = useAuth();
   const { showLocalNotification } = useNotifications();
   
