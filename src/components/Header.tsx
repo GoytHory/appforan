@@ -76,9 +76,10 @@ export const Header: FC<HeaderProps> = ({
 // Стили для компонента
 const styles = StyleSheet.create({
   topBar: {
+    marginTop: 0,
     height: 70,                                   // Высота хедера
     backgroundColor: COLORS.header,
-    marginTop: 30,                                // Отступ от статус-бара (часы, батарея)
+                                    // Отступ от статус-бара (часы, батарея)
     justifyContent: 'center',                     // Центрируем вертикально
     paddingHorizontal: 15,                        // Боковые отступы
   },

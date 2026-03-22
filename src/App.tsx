@@ -1,5 +1,6 @@
-import React, { FC, useEffect } from 'react'; // Добавили useEffect для запуска кода при старте
-import { View, ActivityIndicator } from 'react-native';
+import React, { FC, useEffect } from 'react';
+import { View, ActivityIndicator, Platform } from 'react-native'; // Добавили Platform
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'; // Добавили сейф-зоны
 import LoginScreen from './screens/LoginScreen';
 import MainScreen from './components/MainScreen';
 import { useAuth } from './hooks/useAuth';
@@ -7,45 +8,31 @@ import { useNotifications } from './hooks/useNotifications';
 import { useChats } from './hooks/useChats';
 import { useKeyboard } from './hooks/useKeyboard';
 import { COLORS } from './constants/colors';
-
-// ИМПОРТ: Подключаем наш файл-отправитель. 
-// Проверь путь! Если файл лежит в src/utils/api.ts, то путь '../src/utils/api'
 import { sendTestUser } from './utils/api'; 
 
-const App: FC = () => {
-
-  /**
-   * ЭФФЕКТ ЗАПУСКА ТЕСТА
-   * Этот блок сработает ОДИН РАЗ сразу после того, как приложение загрузится в память.
-   * Он нужен, чтобы принудительно "пнуть" сервер и создать пользователя.
-   */
+const AppContent: FC = () => {
+  // Твоя логика теста
   useEffect(() => {
-    // Выводим сообщение в консоль твоего компьютера (терминал VS Code / Expo)
     console.log("=== ПРИЛОЖЕНИЕ ЗАПУЩЕНО: ОТПРАВЛЯЮ ТЕСТОВОГО ЮЗЕРА ===");
-
-    // Вызываем функцию из api.ts
-    // Мы передаем имя "TechnoShaman", которое должно появиться в MongoDB
     sendTestUser("TechnoShaman");
-    
-  }, []); // Пустые скобки в конце гарантируют, что код не будет зацикливаться
-
-  // ========== ИНИЦИАЛИЗАЦИЯ ХУКОВ (твой код) ==========
+  }, []);
 
   const { myUsername, setMyUsername, isLoading, handleLogin } = useAuth();
   const { showLocalNotification } = useNotifications();
+  
+  // Достаем всё из useChats, включая allChats (если понадобится для меню)
   const {
     activeChatId,
     setActiveChatId,
     currentMessages,
     currentTitle,
     scrollRef,
-    handleSend
+    handleSend,
+    allChats // Добавили, чтобы прокидывать в MainScreen если нужно
   } = useChats(myUsername, showLocalNotification);
+  
   const { keyboardHeight } = useKeyboard();
 
-  // ========== УСЛОВНЫЙ РЕНДЕРИНГ ==========
-
-  // 1. Экран загрузки
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center' }}>
@@ -54,24 +41,34 @@ const App: FC = () => {
     );
   }
 
-  // 2. Экран входа (если нет имени в памяти телефона)
   if (!myUsername) {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  // 3. Основной экран мессенджера
+  // Обертка SafeAreaView внутри контента, чтобы она знала о контексте провайдера
   return (
-    <MainScreen
-      myUsername={myUsername}
-      setMyUsername={setMyUsername}
-      currentTitle={currentTitle}
-      currentMessages={currentMessages}
-      scrollRef={scrollRef}
-      keyboardHeight={keyboardHeight}
-      activeChatId={activeChatId}
-      setActiveChatId={setActiveChatId}
-      handleSend={handleSend}
-    />
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top', 'bottom']}>
+      <MainScreen
+        myUsername={myUsername}
+        setMyUsername={setMyUsername}
+        currentTitle={currentTitle}
+        currentMessages={currentMessages}
+        scrollRef={scrollRef}
+        keyboardHeight={keyboardHeight}
+        activeChatId={activeChatId}
+        setActiveChatId={setActiveChatId}
+        handleSend={handleSend}
+      />
+    </SafeAreaView>
+  );
+};
+
+// ГЛАВНЫЙ КОМПОНЕНТ: Обязательно оборачиваем в Provider
+const App: FC = () => {
+  return (
+    <SafeAreaProvider>
+      <AppContent />
+    </SafeAreaProvider>
   );
 };
 

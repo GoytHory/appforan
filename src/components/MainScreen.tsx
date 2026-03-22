@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { View, SafeAreaView, Modal, TouchableOpacity, Text, Platform } from 'react-native';
+import { View,  Modal, TouchableOpacity, Text, Platform } from 'react-native';
 import { Header } from './Header';
 import { Bottom } from './Bottom';
 import { Midler } from './Midler';
@@ -8,6 +8,8 @@ import { FloatingButton } from './FloatingButton';
 import ProfileScreen from '../screens/ProfileScreen';
 import { COLORS } from '../constants/colors';
 import { MainScreenProps } from '../types';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * MainScreen — главный экран приложения с чатом.
@@ -58,7 +60,7 @@ const MainScreen: FC<MainScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.background }}>
       {/* HEADER: Заголовок с названием чата и кнопкой профиля */}
       <Header
         title={currentTitle}
@@ -120,7 +122,7 @@ const MainScreen: FC<MainScreenProps> = ({
           />
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,40 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { ScrollView } from 'react-native';
 import socket from '../utils/socket';
-import { Message, Chat, ChatState, IncomingMessage, SocketEventPayload, UseChatsReturnType } from '../types';
+import { Message, ChatState, IncomingMessage, SocketEventPayload, UseChatsReturnType } from '../types';
 
-/**
- * useChats — кастомный хук для управления чатами и сообщениями.
- * 
- * ЧТО ДЕЛАЕТ:
- * 1. Управляет состоянием всех чатов и сообщений
- * 2. Подписывается на Socket.IO события (получение сообщений с сервера)
- * 3. Обновляет список сообщений при получении новых
- * 4. Показывает уведомления для входящих сообщений
- * 5. Предоставляет функцию для отправки сообщений
- * 
- * ПАРАМЕТРЫ:
- * - myUsername: имя пользователя (строка)
- * - showLocalNotification: функция для показа уведомлений
- * 
- * ВОЗВРАЩАЕТ: объект с состоянием и функциями
- */
 export function useChats(
-  myUsername: string,                         // Имя пользователя
-  showLocalNotification: (title: string, body: string) => Promise<void>  // Функция уведомлений
+  myUsername: string,
+  showLocalNotification: (title: string, body: string) => Promise<void>
 ): UseChatsReturnType {
-  // Состояние: ID активно открытого чата
   const [activeChatId, setActiveChatId] = useState<string>('1');
-
-  /**
-   * Состояние: все чаты и их сообщения
-   * Структура:
-   * {
-   *   "1": { name: "Лохи", messages: [...] },
-   *   "2": { name: "болталк", messages: [...] },
-   *   ...
-   * }
-   */
   const [allChats, setAllChats] = useState<ChatState>({
     '1': { name: 'Лохи', messages: [] },
     '2': { name: 'болталк', messages: [] },
@@ -42,166 +15,107 @@ export function useChats(
     '4': { name: 'товарпищ майор', messages: [] },
   });
 
-  //Ссылка (ref) на ScrollView для прокрутки вниз при новых сообщениях
   const scrollRef = useRef<ScrollView>(null);
-
-  // Вычисляемые значения (преобразованы в переменные для удобства)
-
-  // Текущий активный чат
-  const currentChat = allChats[activeChatId];
-
-  // Сообщения активного чата
-  const currentMessages: Message[] = currentChat ? currentChat.messages : [];
-
-  // Название активного чата
-  const currentTitle: string = currentChat ? currentChat.name : 'Чат';
-
-  /**
-   * Эффект: подписка на Socket.IO события
-   * Зависимости: myUsername и showLocalNotification
-   * Выполняется при изменении этих переменных
-   */
+  
+  // Используем Ref для активного ID, чтобы сокет всегда знал, какой чат "сейчас на экране"
+  // без перезапуска всего слушателя
+  const activeIdRef = useRef(activeChatId);
   useEffect(() => {
-    /**
-     * Событие 'history': приходит история сообщений при подключении
-     * 
-     * ПАРАМЕТР historyData: массив сообщений с сервера
-     */
-    socket.on('history', (historyData: any[]) => {
-      // Обновляем состояние чатов
-      setAllChats((prev: ChatState) => {
-        // Создаём копию всех чатов
-        const newChats = { ...prev };
+    activeIdRef.current = activeChatId;
+  }, [activeChatId]);
 
-        // Преобразуем историю в наш формат (Message[])
-        newChats['1'].messages = historyData.map((msg: any) => ({
-          id: msg._id,                           // ID с сервера
-          text: msg.text,                        // Текст сообщения
-          author: msg.user,                      // Кто написал
-          sender: msg.user === myUsername ? 'me' : 'other',  // Своё или чужое
-          time: new Date(msg.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })  // Форматируем время
-        }));
+  // 1. ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ (запускаются 1 раз при старте)
+  useEffect(() => {
+    const handleHistory = (historyData: any[]) => {
+      const currentId = activeIdRef.current; // Берем актуальный ID из рефа
 
-        return newChats;
-      });
+      const formatted: Message[] = historyData.map((msg: any) => ({
+        id: msg._id || msg.id,
+        text: msg.text,
+        author: msg.user,
+        sender: (msg.user === myUsername ? 'me' : 'other') as "me" | "other",
+        time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
 
-      // Прокручиваем вниз через 500ms (даём времени на рендер)
+      setAllChats(prev => ({
+        ...prev,
+        [currentId]: { ...prev[currentId], messages: formatted }
+      }));
+
+      // Мгновенный скролл без анимации
       setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 500);
-    });
+        scrollRef.current?.scrollToEnd({ animated: false });
+      }, 30);
+    };
 
-    /**
-     * Событие 'message': приходит новое сообщение в реальном времени
-     * 
-     * ПАРАМЕТР incoming: объект сообщения от сервера
-     */
-    socket.on("message", (incoming: IncomingMessage) => {
-      // Определяем автора (может быть в разных полях)
+    const handleMessage = (incoming: any) => {
+      const targetChatId = incoming.chatId || '1';
       const author = incoming.senderName || incoming.user || 'Unknown';
-
-      // Проверяем, это своё сообщение или чужое
       const isMe = author === myUsername;
 
-      // Если это сообщение от других, показываем уведомление
       if (!isMe) {
         showLocalNotification(author, incoming.text);
       }
 
-      // Обновляем состояние чатов
-      setAllChats((prev: ChatState) => {
-        // ID чата (по умолчанию первый)
-        const chatId = incoming.chatId || '1';
+      setAllChats(prev => {
+        if (!prev[targetChatId]) return prev;
+        const isDuplicate = prev[targetChatId].messages.some((m: any) => m.id === (incoming.id || incoming._id));
+        if (isDuplicate) return prev;
 
-        // Проверяем, нет ли уже такого сообщения (дубликат)
-        const exists = prev[chatId]?.messages.some(
-          (m: Message) => m.id === incoming.id || m.id === incoming._id
-        );
-
-        // Если дубликат, ничего не меняем
-        if (exists) return prev;
-
-        // Создаём объект нового сообщения в нашем формате
         const newMessage: Message = {
           id: incoming.id || incoming._id || Date.now().toString(),
           text: incoming.text,
           author: author,
-          sender: isMe ? 'me' : 'other',
-          time: incoming.time || new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-          })
+          sender: (isMe ? 'me' : 'other') as "me" | "other",
+          time: incoming.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        // Возвращаем новое состояние с добавленным сообщением
         return {
           ...prev,
-          [chatId]: {
-            ...prev[chatId],
-            messages: [...prev[chatId].messages, newMessage]  // Добавляем сообщение в конец
-          }
+          [targetChatId]: { ...prev[targetChatId], messages: [...prev[targetChatId].messages, newMessage] }
         };
       });
 
-      // Быстро прокручиваем вниз
-      setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    });
-
-    // Функция очистки: отписываемся от событий при размонтировании
-    return () => {
-      socket.off('history');
-      socket.off('message');
+      if (targetChatId === activeIdRef.current) {
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     };
-  }, [myUsername, showLocalNotification]);  // Переписываемся при изменении этих значений
 
-  /**
-   * handleSend — функция отправки сообщения на сервер
-   * 
-   * ПАРАМЕТРЫ:
-   * - inputText: текст сообщения
-   * - activeChatId: в какой чат отправляем
-   * - myUsername: кто отправляет
-   * 
-   * ЧТО ДЕЛАЕТ:
-   * 1. Проверяет, что текст не пустой
-   * 2. Создаёт объект сообщения
-   * 3. Отправляет на сервер через Socket.IO
-   */
-  const handleSend = (
-    inputText: string,      // Текст
-    activeChatId: string,   // ID чата
-    myUsername: string      // Имя пользователя
-  ): void => {
-    // Проверяем, что текст не только из пробелов
+    socket.on('history', handleHistory);
+    socket.on('message', handleMessage);
+
+    return () => {
+      socket.off('history', handleHistory);
+      socket.off('message', handleMessage);
+    };
+  }, [myUsername, showLocalNotification]); // ЭТОТ ЭФФЕКТ НЕ ПЕРЕЗАПУСКАЕТСЯ ПРИ СМЕНЕ ЧАТА
+
+  // 2. ОТДЕЛЬНЫЙ ЭФФЕКТ ДЛЯ ЗАПРОСА ИСТОРИИ
+  useEffect(() => {
+    // Просто просим сервер прислать данные, когда сменился ID
+    socket.emit('joinChat', activeChatId);
+  }, [activeChatId]);
+
+  const handleSend = (inputText: string, activeChatId: string, myUsername: string): void => {
     if (inputText.trim().length > 0) {
-      // Создаём объект payload для отправки на сервер
       const payload: SocketEventPayload = {
-        text: inputText.trim(),  // Текст (без лишних пробелов)
-        senderName: myUsername,  // Кто отправляет
-        chatId: activeChatId,    // В какой чат
-        time: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit'
-        })  // Время
+        text: inputText.trim(),
+        senderName: myUsername,
+        chatId: activeChatId,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-
-      // Отправляем на сервер через Socket.IO
       socket.emit("message", payload);
     }
   };
 
-  // Возвращаем все нужные переменные и функции
   return {
     activeChatId,
     setActiveChatId,
     allChats,
-    currentMessages,
-    currentTitle,
+    currentMessages: allChats[activeChatId]?.messages || [],
+    currentTitle: allChats[activeChatId]?.name || 'Чат',
     scrollRef,
     handleSend
   };

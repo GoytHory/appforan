@@ -21,7 +21,7 @@ import { ChatListMenuProps } from '../types';
 // Временные данные чатов (в реальном приложении это бы приходило с сервера)
 const DATA = [
   {id: '1',name: 'Лохи',lastMsg: 'Связь установлена...',time: '20:15',avatarUrl: 'https://i.pinimg.com/736x/4c/47/62/4c4762da4696eb9c67cc902095a58470.jpg'},
-  //{ id: '2', name: 'болталк', lastMsg: 'Нужно поправить стили', time: '18:40', avatarUrl: 'https://zefirka.club/uploads/posts/2022-09/1663072734_1-zefirka-club-p-ava-dlya-tt-bravl-2.jpg' },
+  { id: '2', name: 'болталк', lastMsg: 'Нужно поправить стили', time: '18:40', avatarUrl: 'https://zefirka.club/uploads/posts/2022-09/1663072734_1-zefirka-club-p-ava-dlya-tt-bravl-2.jpg' },
   //{ id: '3', name: 'личный чат', lastMsg: 'Привет, как успехи?', time: 'Вчера', avatarUrl: 'https://i.pinimg.com/736x/e9/5c/b6/e95cb69be980ce54c33272ea9e02b7da.jpg'},
   //{ id: '4', name: 'товарпищ майор', lastMsg: 'слежка за вами прошла успешно', time: '14:20' , avatarUrl: 'https://i.pinimg.com/236x/c8/ae/1d/c8ae1d580b82ff0224af632df5db771b.jpg'},
 ];
