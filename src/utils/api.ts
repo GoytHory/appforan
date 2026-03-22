@@ -9,7 +9,7 @@
 
 // Адрес твоего сервера. 
 // Если тестируешь в браузере — localhost, если на реальном Android — нужен IP компьютера.
-const API_URL = 'https://serverapp-f0wj.onrender.com'; 
+const SERVER_URL = 'https://serverapp-f0wj.onrender.com';
 
 export const sendTestUser = async (name: string) => {
   try {
@@ -31,4 +31,4 @@ export const sendTestUser = async (name: string) => {
 };
 
 // ХАРДКОД: Сразу вызываем функцию с нужным именем
-sendTestUser("TechnoShaman");
+//sendTestUser("Ivan");

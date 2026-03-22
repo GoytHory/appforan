@@ -2,6 +2,7 @@ import React, { FC, useRef } from "react";
 import { StyleSheet, View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { COLORS } from '../constants/colors';
 import { BottomProps } from '../types';
+import { sendTestUser } from '../utils/api'; 
 
 /**
  * Bottom — компонент нижней панели для ввода сообщений.
@@ -42,13 +43,14 @@ export const Bottom: FC<BottomProps> = ({
 
       {/* Кнопка отправки */}
       <TouchableOpacity
-        onPress={() => {
+        onPress={() => { 
           console.log("Кнопка физически нажата в Bottom.tsx");  // Лог для отладки
           onSend();                               // Отправляем сообщение
           inputRef.current?.focus();              // Фокусируем инпут после отправки
         }}
         style={styles.button}
       >
+        
         {/* Иконка стрелочки */}
         <Text style={styles.buttonText}>⋺</Text>
       </TouchableOpacity>
