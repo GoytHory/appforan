@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UseAuthReturnType } from '../types'; // Импорт типов
 import { getMe, loginUser, registerUser } from '../utils/api';
+import { clearSocketToken, disconnectSocket, setSocketToken } from '../utils/socket';
 
 /** //
  * useAuth — кастомный хук для управления аутентификацией.
@@ -28,6 +29,13 @@ export function useAuth(): UseAuthReturnType {
   // true = загружаем, false = готово
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const clearAuthState = async (): Promise<void> => {
+    disconnectSocket();
+    clearSocketToken();
+    await AsyncStorage.multiRemove(['user_name', 'auth_token']);
+    setMyUsername('');
+  };
+
   /**
    * Эффект: инициализация при запуске приложения
    * [] — пустой массив зависимостей означает, что эффект выполнится только один раз
@@ -44,13 +52,13 @@ export function useAuth(): UseAuthReturnType {
         if (savedName && savedToken) {
           try {
             const { user } = await getMe(savedToken);
+            setSocketToken(savedToken);
             setMyUsername(user.username);
           } catch {
-            await AsyncStorage.multiRemove(['user_name', 'auth_token']);
-            setMyUsername('');
+            await clearAuthState();
           }
-        } else if (savedName) {
-          setMyUsername(savedName);
+        } else {
+          await clearAuthState();
         }
       } catch (e) {
         // Если произошла ошибка (например, нет доступа к хранилищу)
@@ -86,6 +94,8 @@ export function useAuth(): UseAuthReturnType {
         ['auth_token', authResponse.token]
       ]);
 
+      setSocketToken(authResponse.token);
+
       // Обновляем состояние приложения
       setMyUsername(authResponse.user.username);
     } catch (e) {
@@ -96,5 +106,5 @@ export function useAuth(): UseAuthReturnType {
   };
 
   // Возвращаем объект с нужными данными и функциями
-  return { myUsername, setMyUsername, isLoading, handleLogin };
+  return { myUsername, setMyUsername, isLoading, handleLogin, logout: clearAuthState };
 }

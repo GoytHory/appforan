@@ -10,7 +10,7 @@ import { useKeyboard } from './hooks/useKeyboard';
 import { COLORS } from './constants/colors';
 
 const AppContent: FC = () => {
-  const { myUsername, setMyUsername, isLoading, handleLogin } = useAuth();
+  const { myUsername, setMyUsername, isLoading, handleLogin, logout } = useAuth();
   const { showLocalNotification } = useNotifications();
   
   // Достаем всё из useChats, включая allChats (если понадобится для меню)
@@ -22,7 +22,9 @@ const AppContent: FC = () => {
     scrollRef,
     handleSend,
     allChats // Добавили, чтобы прокидывать в MainScreen если нужно
-  } = useChats(myUsername, showLocalNotification);
+  } = useChats(myUsername, showLocalNotification, () => {
+    void logout();
+  });
   
   const { keyboardHeight } = useKeyboard();
 

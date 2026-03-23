@@ -215,6 +215,7 @@ export interface UseAuthReturnType {
   setMyUsername: (name: string) => void;    // Функция изменения
   isLoading: boolean;                       // Загружается ли данные
   handleLogin: (name: string, password: string, mode: 'login' | 'register') => Promise<void>;  // Функция логина
+  logout: () => Promise<void>;              // Принудительный выход из аккаунта
 }
 
 /**

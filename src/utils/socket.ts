@@ -38,8 +38,29 @@ const SOCKET_URL = "https://serverapp-f0wj.onrender.com";
 const socket: Socket = io(SOCKET_URL, {
   transports: ['websocket'],    // Используем только WebSocket
   forceNew: true,               // Новое соединение каждый раз
-  upgrade: false                // Не обновляем протокол
+  upgrade: false,               // Не обновляем протокол
+  autoConnect: false
 });
+
+export const setSocketToken = (token: string): void => {
+  socket.auth = { token };
+};
+
+export const clearSocketToken = (): void => {
+  socket.auth = {};
+};
+
+export const connectSocket = (): void => {
+  if (!socket.connected) {
+    socket.connect();
+  }
+};
+
+export const disconnectSocket = (): void => {
+  if (socket.connected) {
+    socket.disconnect();
+  }
+};
 
 // Экспортируем готовый socket object
 // Теперь любой файл может импортировать и использовать socket.emit() и socket.on()

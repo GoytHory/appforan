@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { ScrollView } from 'react-native';
-import socket from '../utils/socket';
+import socket, { connectSocket, disconnectSocket } from '../utils/socket';
 import { Message, ChatState, IncomingMessage, SocketEventPayload, UseChatsReturnType } from '../types';
 
 export function useChats(
   myUsername: string,
-  showLocalNotification: (title: string, body: string) => Promise<void>
+  showLocalNotification: (title: string, body: string) => Promise<void>,
+  onAuthFailure: () => void
 ): UseChatsReturnType {
   const [activeChatId, setActiveChatId] = useState<string>('1');
   const [allChats, setAllChats] = useState<ChatState>({
@@ -26,6 +27,36 @@ export function useChats(
 
   // 1. ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ (запускаются 1 раз при старте)
   useEffect(() => {
+    if (!myUsername) {
+      disconnectSocket();
+      return;
+    }
+
+    const handleConnect = () => {
+      socket.emit('joinChat', activeIdRef.current);
+    };
+
+    const handleConnectError = (error: Error) => {
+      if (error.message.includes('авторизация')) {
+        onAuthFailure();
+      }
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('connect_error', handleConnectError);
+    connectSocket();
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleConnectError);
+    };
+  }, [myUsername, onAuthFailure]);
+
+  useEffect(() => {
+    if (!myUsername) {
+      return;
+    }
+
     const handleHistory = (historyData: any[]) => {
       const currentId = activeIdRef.current; // Берем актуальный ID из рефа
 
@@ -94,9 +125,13 @@ export function useChats(
 
   // 2. ОТДЕЛЬНЫЙ ЭФФЕКТ ДЛЯ ЗАПРОСА ИСТОРИИ
   useEffect(() => {
+    if (!myUsername) {
+      return;
+    }
+
     // Просто просим сервер прислать данные, когда сменился ID
     socket.emit('joinChat', activeChatId);
-  }, [activeChatId]);
+  }, [activeChatId, myUsername]);
 
   const handleSend = (inputText: string, activeChatId: string, myUsername: string): void => {
     if (inputText.trim().length > 0) {
