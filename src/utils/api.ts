@@ -13,6 +13,12 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface DirectChatPreview {
+  chatId: string;
+  otherUser: AuthUser;
+  updatedAt?: string;
+}
+
 const requestJson = async <T>(path: string, options: RequestInit): Promise<T> => {
   const response = await fetch(`${SERVER_URL}${path}`, {
     headers: {
@@ -52,5 +58,46 @@ export const getMe = (token: string): Promise<{ user: AuthUser }> => {
     headers: {
       Authorization: `Bearer ${token}`
     }
+  });
+};
+
+export const updateMyAvatar = (token: string, avatar: string): Promise<{ user: AuthUser }> => {
+  return requestJson<{ user: AuthUser }>('/api/users/me', {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ avatar })
+  });
+};
+
+export const searchUsers = (token: string, query: string): Promise<{ users: AuthUser[] }> => {
+  return requestJson<{ users: AuthUser[] }>(`/api/users/search?q=${encodeURIComponent(query)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const getDirectChats = (token: string): Promise<{ chats: DirectChatPreview[] }> => {
+  return requestJson<{ chats: DirectChatPreview[] }>('/api/chats/direct', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+export const createDirectChat = (
+  token: string,
+  targetUserId: string
+): Promise<{ chatId: string; otherUser: AuthUser }> => {
+  return requestJson<{ chatId: string; otherUser: AuthUser }>('/api/chats/direct', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ targetUserId })
   });
 };

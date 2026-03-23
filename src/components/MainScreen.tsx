@@ -36,7 +36,10 @@ const MainScreen: FC<MainScreenProps> = ({
   keyboardHeight,
   activeChatId,
   setActiveChatId,
-  handleSend
+  handleSend,
+  chatList,
+  searchUsers,
+  createDirectChat
 }) => {
   // Состояние: открито ли модальное окно профиля
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
@@ -94,6 +97,9 @@ const MainScreen: FC<MainScreenProps> = ({
       <ChatListMenu
         visible={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
+        chats={chatList}
+        searchUsers={searchUsers}
+        createDirectChat={createDirectChat}
         onSelectChat={(id: string) => {
           setActiveChatId(id);      // Меняем активный чат
           setIsMenuOpen(false);      // Закрываем меню

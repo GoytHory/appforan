@@ -21,7 +21,9 @@ const AppContent: FC = () => {
     currentTitle,
     scrollRef,
     handleSend,
-    allChats // Добавили, чтобы прокидывать в MainScreen если нужно
+    chatList,
+    searchUsers,
+    createDirectChat
   } = useChats(myUsername, showLocalNotification, () => {
     void logout();
   });
@@ -53,6 +55,9 @@ const AppContent: FC = () => {
         activeChatId={activeChatId}
         setActiveChatId={setActiveChatId}
         handleSend={handleSend}
+        chatList={chatList}
+        searchUsers={searchUsers}
+        createDirectChat={createDirectChat}
       />
     </SafeAreaView>
   );

@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../constants/colors';
 import { ProfileScreenProps } from '../types';
+import { getMe, updateMyAvatar } from '../utils/api';
 
 /**
  * ProfileScreen — экран профиля пользователя.
@@ -22,6 +23,9 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
   // Состояние: URL аватара
   // Может быть строкой (URL) или null (если нет)
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [status, setStatus] = useState<'online' | 'offline'>('offline');
+  const [avatarUrlInput, setAvatarUrlInput] = useState<string>('');
+  const [isSavingAvatar, setIsSavingAvatar] = useState<boolean>(false);
 
   /**
    * Эффект: загрузка профиля при монтировании компонента
@@ -40,12 +44,42 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
    */
   const loadProfile = async (): Promise<void> => {
     try {
-      // Получаем аватар из хранилища
-      const savedAvatar = await AsyncStorage.getItem('user_avatar');
-      // Если аватар есть, устанавливаем его
-      if (savedAvatar) setAvatar(savedAvatar);
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) return;
+
+      const { user } = await getMe(token);
+      setAvatar(user.avatar || null);
+      setAvatarUrlInput(user.avatar || '');
+      setStatus(user.status || 'offline');
     } catch (e) {
       console.log("Ошибка загрузки профиля:", e);
+    }
+  };
+
+  const saveAvatar = async (avatarUrl: string): Promise<void> => {
+    if (!avatarUrl.trim()) {
+      Alert.alert('Ошибка', 'Укажи ссылку на аватар');
+      return;
+    }
+
+    try {
+      setIsSavingAvatar(true);
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) {
+        Alert.alert('Сессия истекла', 'Войди заново');
+        return;
+      }
+
+      const { user } = await updateMyAvatar(token, avatarUrl.trim());
+      setAvatar(user.avatar || null);
+      setAvatarUrlInput(user.avatar || avatarUrl.trim());
+      setStatus(user.status || 'offline');
+      Alert.alert('Готово', 'Аватар обновлен');
+    } catch (e) {
+      console.log('Ошибка сохранения аватара:', e);
+      Alert.alert('Ошибка', 'Не удалось обновить аватар');
+    } finally {
+      setIsSavingAvatar(false);
     }
   };
 
@@ -82,18 +116,9 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
       // Получаем URI первого выбранного изображения
       const uri = result.assets[0].uri;
 
-      // Обновляем состояние
       setAvatar(uri);
-
-      // Сохраняем в AsyncStorage
-      try {
-        await AsyncStorage.setItem('user_avatar', uri);
-      } catch (e) {
-        console.log("Ошибка сохранения аватара:", e);
-      }
-
-      // TODO: Отправить на сервер через Socket.IO
-      // socket.emit('update_avatar', uri);
+      setAvatarUrlInput(uri);
+      await saveAvatar(uri);
     }
   };
 
@@ -121,6 +146,27 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
           editable={false}                // Пока не позволяем редактировать (может ломать логику)
         />
       </View>
+
+      <Text style={styles.statusText}>
+        Статус: {status === 'online' ? 'В сети' : 'Не в сети'}
+      </Text>
+
+      <Text style={styles.label}>URL аватарки:</Text>
+      <TextInput
+        style={styles.avatarUrlInput}
+        value={avatarUrlInput}
+        onChangeText={setAvatarUrlInput}
+        autoCapitalize="none"
+        placeholder="https://..."
+        placeholderTextColor="#7f8897"
+      />
+
+      <TouchableOpacity
+        style={[styles.btn, { marginBottom: 12 }]}
+        onPress={() => void saveAvatar(avatarUrlInput)}
+      >
+        <Text style={styles.btnText}>{isSavingAvatar ? 'Сохранение...' : 'Сохранить аватар'}</Text>
+      </TouchableOpacity>
 
       {/* КНОПКА НАСТРОЕК (заглушка) */}
       <TouchableOpacity
@@ -172,6 +218,20 @@ const styles = StyleSheet.create({
   input: {
     color: '#fff',                                // Белый текст
     fontSize: 18,                                 // Большой размер
+  },
+  statusText: {
+    color: '#c0c8d8',
+    marginBottom: 14,
+  },
+  avatarUrlInput: {
+    width: '85%',
+    backgroundColor: '#333',
+    borderRadius: 10,
+    padding: 12,
+    color: '#fff',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#4a5366',
   },
   btn: {
     width: '85%',                                 // 85% ширины

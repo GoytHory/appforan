@@ -43,6 +43,26 @@ export interface Message {
 export interface Chat {
   name: string;                 // Название чата
   messages: Message[];          // Массив сообщений
+  avatar?: string;
+  status?: 'online' | 'offline';
+  isDirect?: boolean;
+  participantUserId?: string;
+}
+
+export interface SearchUser {
+  id: string;
+  username: string;
+  avatar?: string;
+  status?: 'online' | 'offline';
+}
+
+export interface ChatListItem {
+  id: string;
+  name: string;
+  lastMsg: string;
+  time: string;
+  avatarUrl?: string;
+  status?: 'online' | 'offline';
 }
 
 /**
@@ -154,6 +174,9 @@ export interface MainScreenProps {
   activeChatId: string;                     // ID активного чата
   setActiveChatId: (id: string) => void;    // Функция для смены чата
   handleSend: (text: string, chatId: string, username: string) => void; // Функция отправки
+  chatList: ChatListItem[];
+  searchUsers: (query: string) => Promise<SearchUser[]>;
+  createDirectChat: (targetUserId: string) => Promise<string>;
 }
 
 /**
@@ -190,6 +213,9 @@ export interface ChatListMenuProps {
   visible: boolean;                         // Видимо ли меню
   onClose: () => void;                      // Функция закрытия
   onSelectChat: (id: string) => void;       // Функция выбора чата
+  chats: ChatListItem[];
+  searchUsers: (query: string) => Promise<SearchUser[]>;
+  createDirectChat: (targetUserId: string) => Promise<string>;
 }
 
 /**
@@ -225,10 +251,13 @@ export interface UseChatsReturnType {
   activeChatId: string;                     // ID активного чата
   setActiveChatId: (id: string) => void;    // Функция смены
   allChats: ChatState;                      // Все чаты
+  chatList: ChatListItem[];
   currentMessages: Message[];               // Сообщения активного чата
   currentTitle: string;                     // Название активного чата
   scrollRef: React.RefObject<any>;          // Ссылка для скролла
   handleSend: (text: string, chatId: string, username: string) => void;  // Функция отправки
+  searchUsers: (query: string) => Promise<SearchUser[]>;
+  createDirectChat: (targetUserId: string) => Promise<string>;
 }
 
 /**

@@ -1,7 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import socket, { connectSocket, disconnectSocket } from '../utils/socket';
-import { Message, ChatState, IncomingMessage, SocketEventPayload, UseChatsReturnType } from '../types';
+import { createDirectChat as apiCreateDirectChat, getDirectChats, searchUsers as apiSearchUsers } from '../utils/api';
+import { Message, ChatState, SocketEventPayload, UseChatsReturnType, SearchUser, ChatListItem } from '../types';
+
+const BASE_CHATS: ChatState = {
+  '1': {
+    name: 'Лохи',
+    messages: []
+  },
+  '2': {
+    name: 'болталк',
+    messages: []
+  }
+};
+
+const formatTime = (value?: string | number | Date): string => {
+  if (!value) {
+    return '';
+  }
+
+  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 export function useChats(
   myUsername: string,
@@ -9,14 +30,10 @@ export function useChats(
   onAuthFailure: () => void
 ): UseChatsReturnType {
   const [activeChatId, setActiveChatId] = useState<string>('1');
-  const [allChats, setAllChats] = useState<ChatState>({
-    '1': { name: 'Лохи', messages: [] },
-    '2': { name: 'болталк', messages: [] },
-    '3': { name: 'личный чат', messages: [] },
-    '4': { name: 'товарпищ майор', messages: [] },
-  });
+  const [allChats, setAllChats] = useState<ChatState>(BASE_CHATS);
 
   const scrollRef = useRef<ScrollView>(null);
+  const tokenRef = useRef<string>('');
   
   // Используем Ref для активного ID, чтобы сокет всегда знал, какой чат "сейчас на экране"
   // без перезапуска всего слушателя
@@ -24,6 +41,82 @@ export function useChats(
   useEffect(() => {
     activeIdRef.current = activeChatId;
   }, [activeChatId]);
+
+  const ensureToken = useCallback(async (): Promise<string> => {
+    if (tokenRef.current) {
+      return tokenRef.current;
+    }
+
+    const token = (await AsyncStorage.getItem('auth_token')) || '';
+    tokenRef.current = token;
+    return token;
+  }, []);
+
+  const upsertDirectChat = useCallback(
+    (chatId: string, user: { id: string; username: string; avatar?: string; status?: 'online' | 'offline' }): void => {
+      setAllChats(prev => {
+        const existingMessages = prev[chatId]?.messages || [];
+        return {
+          ...prev,
+          [chatId]: {
+            name: user.username,
+            messages: existingMessages,
+            avatar: user.avatar,
+            status: user.status,
+            isDirect: true,
+            participantUserId: user.id
+          }
+        };
+      });
+    },
+    []
+  );
+
+  const searchUsers = useCallback(async (query: string): Promise<SearchUser[]> => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      return [];
+    }
+
+    const token = await ensureToken();
+    if (!token) {
+      return [];
+    }
+
+    try {
+      const { users } = await apiSearchUsers(token, trimmed);
+      return users;
+    } catch (err) {
+      console.log('Ошибка поиска пользователей:', err);
+      return [];
+    }
+  }, [ensureToken]);
+
+  const createDirectChat = useCallback(async (targetUserId: string): Promise<string> => {
+    const token = await ensureToken();
+    if (!token) {
+      throw new Error('Сессия истекла, войдите снова');
+    }
+
+    const result = await apiCreateDirectChat(token, targetUserId);
+    upsertDirectChat(result.chatId, result.otherUser);
+    setActiveChatId(result.chatId);
+    return result.chatId;
+  }, [ensureToken, upsertDirectChat]);
+
+  const chatList = useMemo<ChatListItem[]>(() => {
+    return Object.entries(allChats).map(([id, chat]) => {
+      const lastMessage = chat.messages[chat.messages.length - 1];
+      return {
+        id,
+        name: chat.name,
+        lastMsg: lastMessage?.text || (chat.isDirect ? 'Персональный чат' : 'Связь установлена...'),
+        time: lastMessage?.time || '',
+        avatarUrl: chat.avatar,
+        status: chat.status
+      };
+    });
+  }, [allChats]);
 
   // 1. ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ (запускаются 1 раз при старте)
   useEffect(() => {
@@ -53,6 +146,32 @@ export function useChats(
   }, [myUsername, onAuthFailure]);
 
   useEffect(() => {
+    const initDirectChats = async (): Promise<void> => {
+      if (!myUsername) {
+        setAllChats(BASE_CHATS);
+        tokenRef.current = '';
+        return;
+      }
+
+      const token = await ensureToken();
+      if (!token) {
+        return;
+      }
+
+      try {
+        const { chats } = await getDirectChats(token);
+        chats.forEach((chat) => {
+          upsertDirectChat(chat.chatId, chat.otherUser);
+        });
+      } catch (err) {
+        console.log('Ошибка загрузки персональных чатов:', err);
+      }
+    };
+
+    initDirectChats();
+  }, [myUsername, ensureToken, upsertDirectChat]);
+
+  useEffect(() => {
     if (!myUsername) {
       return;
     }
@@ -65,12 +184,15 @@ export function useChats(
         text: msg.text,
         author: msg.user,
         sender: (msg.user === myUsername ? 'me' : 'other') as "me" | "other",
-        time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: formatTime(msg.timestamp)
       }));
 
       setAllChats(prev => ({
         ...prev,
-        [currentId]: { ...prev[currentId], messages: formatted }
+        [currentId]: {
+          ...(prev[currentId] || { name: `Чат ${currentId}`, messages: [] }),
+          messages: formatted
+        }
       }));
 
       // Мгновенный скролл без анимации
@@ -89,8 +211,8 @@ export function useChats(
       }
 
       setAllChats(prev => {
-        if (!prev[targetChatId]) return prev;
-        const isDuplicate = prev[targetChatId].messages.some((m: any) => m.id === (incoming.id || incoming._id));
+        const existingChat = prev[targetChatId] || { name: author, messages: [], isDirect: targetChatId.startsWith('dm:') };
+        const isDuplicate = existingChat.messages.some((m: any) => m.id === (incoming.id || incoming._id));
         if (isDuplicate) return prev;
 
         const newMessage: Message = {
@@ -103,7 +225,7 @@ export function useChats(
 
         return {
           ...prev,
-          [targetChatId]: { ...prev[targetChatId], messages: [...prev[targetChatId].messages, newMessage] }
+          [targetChatId]: { ...existingChat, messages: [...existingChat.messages, newMessage] }
         };
       });
 
@@ -149,9 +271,12 @@ export function useChats(
     activeChatId,
     setActiveChatId,
     allChats,
+    chatList,
     currentMessages: allChats[activeChatId]?.messages || [],
     currentTitle: allChats[activeChatId]?.name || 'Чат',
     scrollRef,
-    handleSend
+    handleSend,
+    searchUsers,
+    createDirectChat
   };
 }
