@@ -23,6 +23,7 @@ const AppContent: FC = () => {
     currentChatAvatar,
     currentParticipantUserId,
     currentChatHasMoreMessages,
+    currentChatIsLoadingInitialMessages,
     currentChatIsLoadingOlderMessages,
     currentChatStatus,
     currentChatIsDirect,
@@ -72,6 +73,9 @@ const AppContent: FC = () => {
         currentChatAvatar={currentChatAvatar}
         currentParticipantUserId={currentParticipantUserId}
         currentChatHasMoreMessages={currentChatHasMoreMessages}
+        currentChatIsLoadingInitialMessages={
+          currentChatIsLoadingInitialMessages
+        }
         currentChatIsLoadingOlderMessages={currentChatIsLoadingOlderMessages}
         currentChatStatus={currentChatStatus}
         currentChatIsDirect={currentChatIsDirect}

@@ -1,10 +1,11 @@
-import React, { FC, useEffect, useRef } from "react";
+import React, { FC, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { COLORS } from "../constants/colors";
@@ -27,99 +28,168 @@ import { MidlerProps, Message } from "../types";
 export const Midler: FC<MidlerProps> = ({
   chatMessages, // Массив сообщений
   scrollRef, // Ссылка для скролла
+  isLoadingInitialMessages,
   onReachTop,
   isLoadingOlderMessages,
   hasMoreMessages,
 }) => {
   const contentHeightRef = useRef(0);
+  const viewportHeightRef = useRef(0);
+  const offsetYRef = useRef(0);
   const shouldPreservePositionRef = useRef(false);
   const topRequestLockedRef = useRef(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [isAnchoringToBottom, setIsAnchoringToBottom] = useState(true);
+
+  useEffect(() => {
+    if (isLoadingInitialMessages !== false) {
+      return;
+    }
+
+    if (chatMessages.length === 0) {
+      setIsAnchoringToBottom(false);
+      return;
+    }
+
+    // Ждём следующий frame: к этому моменту native/browser гарантированно
+    // завершил layout всех сообщений, и scrollToEnd попадёт в реальный низ.
+    const frame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: false });
+      offsetYRef.current = Math.max(
+        0,
+        contentHeightRef.current - viewportHeightRef.current,
+      );
+      setIsAnchoringToBottom(false);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [chatMessages.length, isLoadingInitialMessages]);
 
   useEffect(() => {
     if (isLoadingOlderMessages) {
       shouldPreservePositionRef.current = true;
+      return;
     }
+
+    // На мобильных устройствах событие scroll может не дать нам уйти далеко вниз,
+    // поэтому сбрасываем lock после завершения запроса.
+    topRequestLockedRef.current = false;
   }, [isLoadingOlderMessages]);
 
   return (
-    <ScrollView
-      ref={scrollRef} // Ассоциируем с ссылкой
-      style={styles.middleField}
-      scrollEventThrottle={16}
-      onContentSizeChange={(_, height) => {
-        if (shouldPreservePositionRef.current && height > contentHeightRef.current) {
-          const delta = height - contentHeightRef.current;
-          scrollRef.current?.scrollTo({ y: delta, animated: false });
-          shouldPreservePositionRef.current = false;
-        }
+    <View style={styles.container}>
+      <ScrollView
+        ref={scrollRef} // Ассоциируем с ссылкой
+        style={[styles.middleField, isAnchoringToBottom && styles.hiddenScroll]}
+        scrollEventThrottle={16}
+        onLayout={(event) => {
+          viewportHeightRef.current = event.nativeEvent.layout.height;
+        }}
+        onContentSizeChange={(_, height) => {
+          if (
+            shouldPreservePositionRef.current &&
+            height > contentHeightRef.current
+          ) {
+            const delta = height - contentHeightRef.current;
+            const nextOffset = Math.max(0, offsetYRef.current + delta);
+            scrollRef.current?.scrollTo({ y: nextOffset, animated: false });
+            offsetYRef.current = nextOffset;
+            shouldPreservePositionRef.current = false;
+          }
 
-        contentHeightRef.current = height;
-      }}
-      onScroll={(event) => {
-        const offsetY = event.nativeEvent.contentOffset.y;
+          contentHeightRef.current = height;
+        }}
+        onScroll={(event) => {
+          const offsetY = event.nativeEvent.contentOffset.y;
+          const contentHeight = event.nativeEvent.contentSize.height;
+          const viewportHeight = event.nativeEvent.layoutMeasurement.height;
+          const distanceFromBottom = contentHeight - (offsetY + viewportHeight);
 
-        if (offsetY > 120) {
-          topRequestLockedRef.current = false;
-        }
+          offsetYRef.current = offsetY;
+          setShowScrollToBottom(distanceFromBottom > 140);
 
-        if (
-          offsetY <= 40 &&
-          hasMoreMessages &&
-          !isLoadingOlderMessages &&
-          !topRequestLockedRef.current
-        ) {
-          topRequestLockedRef.current = true;
-          onReachTop();
-        }
-      }}
-    >
-      {isLoadingOlderMessages ? (
-        <View style={styles.loaderWrap}>
+          if (
+            offsetY <= 40 &&
+            hasMoreMessages &&
+            !isLoadingOlderMessages &&
+            !isAnchoringToBottom &&
+            !topRequestLockedRef.current
+          ) {
+            topRequestLockedRef.current = true;
+            onReachTop();
+          }
+        }}
+      >
+        {isLoadingOlderMessages ? (
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="small" color={COLORS.myBubble} />
+          </View>
+        ) : null}
+
+        {/* Рендерим каждое сообщение */}
+        {chatMessages.map((msg: Message) => {
+          // Определяем: это своё сообщение или чужое
+          const isMe = msg.sender === "me";
+
+          return (
+            <View
+              key={msg.id} // Уникальный ключ для списка React
+              style={[
+                styles.bubble, // Общие стили пузыря
+                isMe ? styles.myBubble : styles.otherBubble, // Свои стили в зависимости от type
+              ]}
+            >
+              {/* Показываем автора только для чужих сообщений */}
+              {!isMe && msg.author && (
+                <Text style={styles.authorText}>{msg.author}</Text>
+              )}
+
+              {msg.media?.type === "image" && msg.media.url ? (
+                <Image
+                  source={{ uri: msg.media.url }}
+                  style={styles.messageImage}
+                />
+              ) : null}
+
+              {/* Текст сообщения */}
+              {msg.text ? (
+                <Text style={styles.bubbleText}>{msg.text}</Text>
+              ) : null}
+
+              {/* Время отправки */}
+              <Text style={styles.timeText}>{msg.time}</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+
+      {isAnchoringToBottom ? (
+        <View style={styles.anchorOverlay}>
           <ActivityIndicator size="small" color={COLORS.myBubble} />
         </View>
       ) : null}
 
-      {/* Рендерим каждое сообщение */}
-      {chatMessages.map((msg: Message) => {
-        // Определяем: это своё сообщение или чужое
-        const isMe = msg.sender === "me";
-
-        return (
-          <View
-            key={msg.id} // Уникальный ключ для списка React
-            style={[
-              styles.bubble, // Общие стили пузыря
-              isMe ? styles.myBubble : styles.otherBubble, // Свои стили в зависимости от type
-            ]}
-          >
-            {/* Показываем автора только для чужих сообщений */}
-            {!isMe && msg.author && (
-              <Text style={styles.authorText}>{msg.author}</Text>
-            )}
-
-            {msg.media?.type === "image" && msg.media.url ? (
-              <Image
-                source={{ uri: msg.media.url }}
-                style={styles.messageImage}
-              />
-            ) : null}
-
-            {/* Текст сообщения */}
-            {msg.text ? (
-              <Text style={styles.bubbleText}>{msg.text}</Text>
-            ) : null}
-
-            {/* Время отправки */}
-            <Text style={styles.timeText}>{msg.time}</Text>
-          </View>
-        );
-      })}
-    </ScrollView>
+      {showScrollToBottom && !isAnchoringToBottom ? (
+        <TouchableOpacity
+          style={styles.scrollToBottomButton}
+          onPress={() => {
+            scrollRef.current?.scrollToEnd({ animated: true });
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.scrollToBottomIcon}>⦔</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 };
 
 // Стили для компонента
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    position: "relative",
+  },
   middleField: {
     flex: 1, // Занимает всё доступное место
     backgroundColor: COLORS.background,
@@ -176,5 +246,34 @@ const styles = StyleSheet.create({
   loaderWrap: {
     paddingVertical: 10,
     alignItems: "center",
+  },
+  hiddenScroll: {
+    opacity: 0,
+  },
+  anchorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrollToBottomButton: {
+    position: "absolute",
+    left: "50%",
+    bottom: 8,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#4d799c",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)",
+    transform: [{ translateX: -23 }],
+  },
+  scrollToBottomIcon: {
+    color: "#fff",
+    fontSize: 23,
+    transform: [{ rotate: "90deg" }],
+    marginLeft: 5,
+    marginBottom: -2,
   },
 });

@@ -213,6 +213,7 @@ export interface MainScreenProps {
   currentChatAvatar?: string;
   currentParticipantUserId?: string;
   currentChatHasMoreMessages: boolean;
+  currentChatIsLoadingInitialMessages: boolean;
   currentChatIsLoadingOlderMessages: boolean;
   scrollRef: React.RefObject<any>; // Ссылка на ScrollView для прокрутки
   keyboardHeight: number; // Высота клавиатуры
@@ -258,6 +259,7 @@ export interface BottomProps {
 export interface MidlerProps {
   chatMessages: Message[]; // Массив сообщений
   scrollRef: React.RefObject<any>; // Ссылка для скролла
+  isLoadingInitialMessages?: boolean;
   onReachTop: () => void;
   isLoadingOlderMessages?: boolean;
   hasMoreMessages?: boolean;
@@ -319,6 +321,7 @@ export interface UseChatsReturnType {
   currentChatAvatar?: string;
   currentParticipantUserId?: string;
   currentChatHasMoreMessages: boolean;
+  currentChatIsLoadingInitialMessages: boolean;
   currentChatIsLoadingOlderMessages: boolean;
   currentChatStatus?: "online" | "offline";
   currentChatIsDirect: boolean;

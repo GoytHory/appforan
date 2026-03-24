@@ -47,21 +47,24 @@ const getIncomingAuthor = (incoming: IncomingMessage): string => {
   );
 };
 
-const getPreviewText = (message: { text?: string; media?: MessageMedia }): string => {
-  const text = (message.text || '').trim();
+const getPreviewText = (message: {
+  text?: string;
+  media?: MessageMedia;
+}): string => {
+  const text = (message.text || "").trim();
   if (text) {
     return text;
   }
 
-  if (message.media?.type === 'image') {
-    return 'Изображение';
+  if (message.media?.type === "image") {
+    return "Изображение";
   }
 
-  if (message.media?.type === 'audio') {
-    return 'Голосовое сообщение';
+  if (message.media?.type === "audio") {
+    return "Голосовое сообщение";
   }
 
-  return 'Сообщение';
+  return "Сообщение";
 };
 
 const getComparableTimestamp = (value?: string | number | Date): number => {
@@ -90,7 +93,8 @@ const mergeMessages = (
 
   return Array.from(uniqueMessages.values()).sort(
     (first, second) =>
-      getComparableTimestamp(first.timestamp) - getComparableTimestamp(second.timestamp),
+      getComparableTimestamp(first.timestamp) -
+      getComparableTimestamp(second.timestamp),
   );
 };
 
@@ -115,7 +119,10 @@ const formatMessage = (
     : undefined;
 
   return {
-    id: message._id || message.id || `${chatId}:${message.timestamp || Date.now()}`,
+    id:
+      message._id ||
+      message.id ||
+      `${chatId}:${message.timestamp || Date.now()}`,
     text: message.text || "",
     media: message.media,
     author,
@@ -134,9 +141,14 @@ export function useChats(
   const [allChats, setAllChats] = useState<ChatState>(BASE_CHATS);
 
   const scrollRef = useRef<ScrollView>(null);
+  const allChatsRef = useRef<ChatState>(BASE_CHATS);
   const tokenRef = useRef<string>("");
   const joinedChatIdRef = useRef<string>("");
   const pendingAutoScrollChatIdRef = useRef<string>("");
+
+  useEffect(() => {
+    allChatsRef.current = allChats;
+  }, [allChats]);
 
   // Используем Ref для активного ID, чтобы сокет всегда знал, какой чат "сейчас на экране"
   // без перезапуска всего слушателя
@@ -214,13 +226,16 @@ export function useChats(
           status: chat.otherUser.status,
           isDirect: true,
           participantUserId: userId,
-          lastMessageText: chat.lastMessage?.previewText || chat.lastMessage?.text,
+          lastMessageText:
+            chat.lastMessage?.previewText || chat.lastMessage?.text,
           lastMessageTime: formatTime(chat.lastMessage?.timestamp),
           updatedAt:
             (chat.lastMessage?.timestamp
               ? new Date(chat.lastMessage.timestamp).toISOString()
               : undefined) ||
-            (chat.updatedAt ? new Date(chat.updatedAt).toISOString() : next[chat.chatId]?.updatedAt),
+            (chat.updatedAt
+              ? new Date(chat.updatedAt).toISOString()
+              : next[chat.chatId]?.updatedAt),
           oldestMessageTimestamp: next[chat.chatId]?.oldestMessageTimestamp,
           hasLoadedInitialMessages: next[chat.chatId]?.hasLoadedInitialMessages,
           hasMoreMessages: next[chat.chatId]?.hasMoreMessages ?? true,
@@ -248,27 +263,28 @@ export function useChats(
         return;
       }
 
-      let shouldLoad = false;
-      setAllChats((prev) => {
-        const existingChat = prev[chatId];
-        if (existingChat?.hasLoadedInitialMessages || existingChat?.isLoadingInitialMessages) {
-          return prev;
-        }
+      const existingChat = allChatsRef.current[chatId];
+      let skipReason = "";
+      const hasMessages = (existingChat?.messages?.length || 0) > 0;
 
-        shouldLoad = true;
-        return {
-          ...prev,
-          [chatId]: {
-            ...(existingChat || { name: `Чат ${chatId}`, messages: [] }),
-            isLoadingInitialMessages: true,
-            hasMoreMessages: existingChat?.hasMoreMessages ?? true,
-          },
-        };
-      });
+      if (existingChat?.isLoadingInitialMessages) {
+        skipReason = "already loading";
+      } else if (existingChat?.hasLoadedInitialMessages && hasMessages) {
+        skipReason = "already has messages";
+      }
 
-      if (!shouldLoad) {
+      if (skipReason) {
         return;
       }
+
+      setAllChats((prev) => ({
+        ...prev,
+        [chatId]: {
+          ...(prev[chatId] || { name: `Чат ${chatId}`, messages: [] }),
+          isLoadingInitialMessages: true,
+          hasMoreMessages: prev[chatId]?.hasMoreMessages ?? true,
+        },
+      }));
 
       const token = await ensureToken();
       if (!token) {
@@ -301,7 +317,8 @@ export function useChats(
               : prev[chatId]?.lastMessageText,
             lastMessageTime: formatted[formatted.length - 1]?.time,
             updatedAt:
-              formatted[formatted.length - 1]?.timestamp || prev[chatId]?.updatedAt,
+              formatted[formatted.length - 1]?.timestamp ||
+              prev[chatId]?.updatedAt,
             oldestMessageTimestamp:
               formatted[0]?.timestamp || prev[chatId]?.oldestMessageTimestamp,
             hasLoadedInitialMessages: true,
@@ -310,10 +327,6 @@ export function useChats(
             isLoadingOlderMessages: false,
           },
         }));
-
-        setTimeout(() => {
-          scrollRef.current?.scrollToEnd({ animated: false });
-        }, 30);
       } catch (err) {
         console.log("Ошибка загрузки истории:", err);
         setAllChats((prev) => ({
@@ -334,43 +347,38 @@ export function useChats(
       return;
     }
 
-    let beforeCursor = "";
-    let shouldLoad = false;
+    const existingChat = allChatsRef.current[chatId];
+    let beforeCursor = existingChat?.oldestMessageTimestamp || "";
+    let skipReason = "";
 
-    setAllChats((prev) => {
-      const existingChat = prev[chatId];
-      if (
-        !existingChat?.hasLoadedInitialMessages ||
-        !existingChat?.hasMoreMessages ||
-        existingChat.isLoadingOlderMessages
-      ) {
-        return prev;
-      }
-
-      beforeCursor = existingChat.oldestMessageTimestamp || "";
-      if (!beforeCursor) {
-        return {
-          ...prev,
-          [chatId]: {
-            ...existingChat,
-            hasMoreMessages: false,
-          },
-        };
-      }
-
-      shouldLoad = true;
-      return {
+    if (!existingChat?.hasLoadedInitialMessages) {
+      skipReason = "initial history not loaded";
+    } else if (!existingChat?.hasMoreMessages) {
+      skipReason = "hasMoreMessages=false";
+    } else if (existingChat.isLoadingOlderMessages) {
+      skipReason = "already loading older messages";
+    } else if (!beforeCursor) {
+      skipReason = "missing oldestMessageTimestamp";
+      setAllChats((prev) => ({
         ...prev,
         [chatId]: {
-          ...existingChat,
-          isLoadingOlderMessages: true,
+          ...(prev[chatId] || { name: `Чат ${chatId}`, messages: [] }),
+          hasMoreMessages: false,
         },
-      };
-    });
+      }));
+    }
 
-    if (!shouldLoad || !beforeCursor) {
+    if (skipReason || !beforeCursor) {
       return;
     }
+
+    setAllChats((prev) => ({
+      ...prev,
+      [chatId]: {
+        ...(prev[chatId] || { name: `Чат ${chatId}`, messages: [] }),
+        isLoadingOlderMessages: true,
+      },
+    }));
 
     const token = await ensureToken();
     if (!token) {
@@ -411,7 +419,8 @@ export function useChats(
             ...existingChat,
             messages: mergedMessages,
             oldestMessageTimestamp:
-              mergedMessages[0]?.timestamp || existingChat.oldestMessageTimestamp,
+              mergedMessages[0]?.timestamp ||
+              existingChat.oldestMessageTimestamp,
             hasMoreMessages: messages.length === PAGE_SIZE,
             isLoadingOlderMessages: false,
           },
@@ -597,7 +606,10 @@ export function useChats(
       const isCurrentChatOpen = targetChatId === activeIdRef.current;
 
       if (!isMe && !isCurrentChatOpen) {
-        void showLocalNotification(author, getPreviewText({ text: incoming.text, media: incoming.media }));
+        void showLocalNotification(
+          author,
+          getPreviewText({ text: incoming.text, media: incoming.media }),
+        );
       }
 
       setAllChats((prev) => {
@@ -613,7 +625,7 @@ export function useChats(
 
         const newMessage: Message = {
           id: incoming.id || incoming._id || Date.now().toString(),
-          text: incoming.text || '',
+          text: incoming.text || "",
           media: incoming.media,
           author: author,
           sender: (isMe ? "me" : "other") as "me" | "other",
@@ -634,7 +646,11 @@ export function useChats(
           [targetChatId]: {
             ...existingChat,
             avatar: existingChat.avatar || incoming.sender?.avatar,
-            messages: mergeMessages(existingChat.messages, [newMessage], "append"),
+            messages: mergeMessages(
+              existingChat.messages,
+              [newMessage],
+              "append",
+            ),
             lastMessageText: getPreviewText(newMessage),
             lastMessageTime: newMessage.time,
             updatedAt: newMessage.timestamp || existingChat.updatedAt,
@@ -669,7 +685,8 @@ export function useChats(
         const otherUserId = incoming.otherUser
           ? normalizeUserId(incoming.otherUser)
           : existingChat.participantUserId;
-        const updatedAtValue = incoming.updatedAt || incoming.lastMessage?.timestamp;
+        const updatedAtValue =
+          incoming.updatedAt || incoming.lastMessage?.timestamp;
 
         return {
           ...prev,
@@ -685,7 +702,8 @@ export function useChats(
               incoming.lastMessage?.text ||
               existingChat.lastMessageText,
             lastMessageTime:
-              formatTime(incoming.lastMessage?.timestamp) || existingChat.lastMessageTime,
+              formatTime(incoming.lastMessage?.timestamp) ||
+              existingChat.lastMessageTime,
             updatedAt: updatedAtValue
               ? new Date(updatedAtValue).toISOString()
               : existingChat.updatedAt,
@@ -748,7 +766,7 @@ export function useChats(
       media,
       text: text?.trim() || undefined,
     };
-    socket.emit('message', payload);
+    socket.emit("message", payload);
   };
 
   return {
@@ -760,7 +778,14 @@ export function useChats(
     currentTitle: allChats[activeChatId]?.name || "Чат",
     currentChatAvatar: allChats[activeChatId]?.avatar,
     currentParticipantUserId: allChats[activeChatId]?.participantUserId,
-    currentChatHasMoreMessages: Boolean(allChats[activeChatId]?.hasMoreMessages),
+    currentChatHasMoreMessages: Boolean(
+      allChats[activeChatId]?.hasMoreMessages,
+    ),
+    // true если: загрузка идёт прямо сейчас, ИЛИ чат ни разу не загружался.
+    // Это не даёт Midler снять якорь до того как придут первые сообщения.
+    currentChatIsLoadingInitialMessages:
+      allChats[activeChatId]?.isLoadingInitialMessages === true ||
+      !allChats[activeChatId]?.hasLoadedInitialMessages,
     currentChatIsLoadingOlderMessages: Boolean(
       allChats[activeChatId]?.isLoadingOlderMessages,
     ),

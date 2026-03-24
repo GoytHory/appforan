@@ -45,6 +45,7 @@ const MainScreen: FC<MainScreenProps> = ({
   currentChatAvatar,
   currentParticipantUserId,
   currentChatHasMoreMessages,
+  currentChatIsLoadingInitialMessages,
   currentChatIsLoadingOlderMessages,
   currentChatStatus,
   currentChatIsDirect,
@@ -183,8 +184,10 @@ const MainScreen: FC<MainScreenProps> = ({
       {/* MIDLER: Область сообщений */}
       <View style={{ flex: 1 }}>
         <Midler
+          key={`midler-${activeChatId || "empty"}`}
           chatMessages={currentMessages}
           scrollRef={scrollRef}
+          isLoadingInitialMessages={currentChatIsLoadingInitialMessages}
           onReachTop={loadOlderMessages}
           isLoadingOlderMessages={currentChatIsLoadingOlderMessages}
           hasMoreMessages={currentChatHasMoreMessages}
