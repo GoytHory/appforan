@@ -8,9 +8,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Audio, AVPlaybackStatus } from "expo-av";
 import { COLORS } from "../constants/colors";
 import { MidlerProps, Message } from "../types";
+
+const getExpoAudioModule = (): { Audio: any } | null => {
+  try {
+    return require("expo-av");
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Midler — компонент для отображения списка сообщений.
@@ -41,10 +48,10 @@ export const Midler: FC<MidlerProps> = ({
   const topRequestLockedRef = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isAnchoringToBottom, setIsAnchoringToBottom] = useState(true);
-  const [playingMessageId, setPlayingMessageId] = useState<string | number | null>(
-    null,
-  );
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const [playingMessageId, setPlayingMessageId] = useState<
+    string | number | null
+  >(null);
+  const soundRef = useRef<any | null>(null);
 
   const unloadCurrentSound = async (): Promise<void> => {
     if (!soundRef.current) {
@@ -74,6 +81,11 @@ export const Midler: FC<MidlerProps> = ({
     audioUrl: string,
   ): Promise<void> => {
     try {
+      const expoAudio = getExpoAudioModule();
+      if (!expoAudio?.Audio) {
+        return;
+      }
+
       if (playingMessageId === messageId && soundRef.current) {
         await soundRef.current.stopAsync();
         await unloadCurrentSound();
@@ -83,7 +95,7 @@ export const Midler: FC<MidlerProps> = ({
 
       await unloadCurrentSound();
 
-      const { sound } = await Audio.Sound.createAsync(
+      const { sound } = await expoAudio.Audio.Sound.createAsync(
         { uri: audioUrl },
         { shouldPlay: true },
       );
@@ -91,7 +103,7 @@ export const Midler: FC<MidlerProps> = ({
       soundRef.current = sound;
       setPlayingMessageId(messageId);
 
-      sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+      sound.setOnPlaybackStatusUpdate((status: any) => {
         if (!status.isLoaded) {
           return;
         }
@@ -226,7 +238,9 @@ export const Midler: FC<MidlerProps> = ({
               {msg.media?.type === "audio" && msg.media.url ? (
                 <TouchableOpacity
                   style={styles.audioCard}
-                  onPress={() => void toggleAudioPlayback(msg.id, msg.media!.url!)}
+                  onPress={() =>
+                    void toggleAudioPlayback(msg.id, msg.media!.url!)
+                  }
                   activeOpacity={0.8}
                 >
                   <Text style={styles.audioCardIcon}>

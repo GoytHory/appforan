@@ -70,7 +70,11 @@ const requestJson = async <T>(
   if (!response.ok) {
     const message =
       typeof data?.error === "string" ? data.error : "Ошибка запроса";
-    throw new Error(message);
+    const details =
+      typeof data?.details === "string" && data.details.trim()
+        ? ` (${data.details.trim()})`
+        : "";
+    throw new Error(`${message}${details}`);
   }
 
   return data as T;
@@ -194,13 +198,16 @@ export const uploadImageToServer = (
   token: string,
   payload: { base64: string; mimeType?: string; context?: "avatar" | "chat" },
 ): Promise<{ objectKey: string; url: string; mediaType: "image" }> => {
-  return requestJson<{ objectKey: string; url: string; mediaType: "image" }>("/api/media/image", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  return requestJson<{ objectKey: string; url: string; mediaType: "image" }>(
+    "/api/media/image",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+  );
 };
 
 export const uploadAudioToServer = (

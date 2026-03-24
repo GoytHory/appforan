@@ -252,8 +252,9 @@ export interface BottomProps {
   onTextChange: (text: string) => void; // Функция при изменении текста
   onSend: () => void; // Функция при отправке
   onOpenMediaPicker: () => void;
-  onToggleAudioRecording: () => void;
+  onToggleAudioRecording: () => void; // Функция для управления записью аудио
   isRecordingAudio: boolean;
+  onCancelAudioRecording: () => void;
 }
 
 /**

@@ -8,7 +8,6 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Header } from "./Header";
@@ -21,6 +20,14 @@ import { COLORS } from "../constants/colors";
 import { MainScreenProps } from "../types";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { uploadAudioToServer, uploadImageToServer } from "../utils/api";
+
+const getExpoAudioModule = (): { Audio: any } | null => {
+  try {
+    return require("expo-av");
+  } catch {
+    return null;
+  }
+};
 
 /**
  * MainScreen — главный экран приложения с чатом.
@@ -70,7 +77,7 @@ const MainScreen: FC<MainScreenProps> = ({
 
   // Состояние: текущий текст в поле ввода
   const [inputText, setInputText] = useState<string>("");
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recording, setRecording] = useState<any | null>(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState<boolean>(false);
 
   /**
@@ -174,21 +181,30 @@ const MainScreen: FC<MainScreenProps> = ({
       return;
     }
 
-    const permission = await Audio.requestPermissionsAsync();
+    const expoAudio = getExpoAudioModule();
+    if (!expoAudio?.Audio) {
+      Alert.alert(
+        "Голосовые недоступны",
+        "В этом клиенте нет native-модуля expo-av. Открой через Expo Go или пересобери Dev Client.",
+      );
+      return;
+    }
+
+    const permission = await expoAudio.Audio.requestPermissionsAsync();
     if (!permission.granted) {
       Alert.alert("Нет доступа", "Нужен доступ к микрофону");
       return;
     }
 
     try {
-      await Audio.setAudioModeAsync({
+      await expoAudio.Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
       });
 
-      const created = new Audio.Recording();
+      const created = new expoAudio.Audio.Recording();
       await created.prepareToRecordAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        expoAudio.Audio.RecordingOptionsPresets.HIGH_QUALITY,
       );
       await created.startAsync();
 
@@ -197,6 +213,24 @@ const MainScreen: FC<MainScreenProps> = ({
     } catch (error) {
       console.log("Ошибка старта записи:", error);
       Alert.alert("Ошибка", "Не удалось начать запись");
+      setRecording(null);
+      setIsRecordingAudio(false);
+    }
+  };
+
+  const cancelAudioRecording = async (): Promise<void> => {
+    if (!recording) return;
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+
+      if (uri) {
+        await FileSystem.deleteAsync(uri, { idempotent: true });
+      }
+    } catch (e) {
+      console.log("Ошибка отмены записи:", e);
+    } finally {
       setRecording(null);
       setIsRecordingAudio(false);
     }
@@ -312,8 +346,9 @@ const MainScreen: FC<MainScreenProps> = ({
         onTextChange={setInputText}
         onSend={onSend}
         onOpenMediaPicker={openMediaPicker}
-        onToggleAudioRecording={toggleAudioRecording}
-        isRecordingAudio={isRecordingAudio}
+        onToggleAudioRecording={toggleAudioRecording} // Новая функция для управления записью аудио
+        isRecordingAudio={isRecordingAudio} // Передаем состояние записи в Bottom для отображения индикатора или изменения иконки
+        onCancelAudioRecording={cancelAudioRecording} // Функция для отмены записи аудио
       />
 
       {/* Android отступ для клавиатуры */}
@@ -364,4 +399,4 @@ const MainScreen: FC<MainScreenProps> = ({
   );
 };
 
-export default MainScreen;
+export default MainScreen; // Функция для отправки изображения в чат

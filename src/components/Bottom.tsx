@@ -33,6 +33,7 @@ export const Bottom: FC<BottomProps> = ({
   onOpenMediaPicker,
   onToggleAudioRecording,
   isRecordingAudio,
+  onCancelAudioRecording,
 }) => {
   // Ref для фокуса на инпут после отправки
   // useRef создаёт ссылку, которая не теряется при ре-рендере
@@ -139,6 +140,7 @@ export const Bottom: FC<BottomProps> = ({
     pressStartY.current = startY;
     movedUpToCancel.current = false;
     longPressTriggered.current = false;
+    cancelRecordingRequested.current = false;
     setSendGestureState("press");
 
     // Зона отмены: от (startY - threshold - height) до (startY - threshold).
@@ -160,6 +162,7 @@ export const Bottom: FC<BottomProps> = ({
     });
   };
 
+  const cancelRecordingRequested = useRef(false);
   // onTouchMove следит за движением пальца.
   // Если палец ушел вверх дальше порога - переводим кнопку в режим отмены.
   const handleSendPressMove = (event: any) => {
@@ -181,6 +184,7 @@ export const Bottom: FC<BottomProps> = ({
 
     if (inY && inX) {
       movedUpToCancel.current = true;
+      cancelRecordingRequested.current = true; // пометили: при отпускании отменяем запись
       setSendGestureState("swipeCancel");
       runVibration(SWIPE_CANCEL_VIBRATION_PATTERN);
     }
@@ -344,18 +348,18 @@ export const Bottom: FC<BottomProps> = ({
         <Text style={styles.buttonText}>⧜</Text>
       </Pressable>
 
-      <Pressable
-        onPress={onToggleAudioRecording}
-        style={({ pressed }) => [
-          {
-            transform: [{ scale: pressed ? 0.9 : 1 }],
-            backgroundColor: isRecordingAudio ? "#8a3a4c" : "#4d799c",
-          },
-          styles.button,
-        ]}
-      >
-        <Text style={styles.buttonText}>{isRecordingAudio ? "■" : "⦿"}</Text>
-      </Pressable>
+      {/*<Pressable
+      //  onPress={onToggleAudioRecording}
+      //  style={({ pressed }) => [
+      //    {
+      //      transform: [{ scale: pressed ? 0.9 : 1 }],
+      //      backgroundColor: isRecordingAudio ? "#8a3a4c" : "#4d799c",
+      //    },
+      //    styles.button,
+      //  ]}
+     // >
+     //   <Text style={styles.buttonText}>{isRecordingAudio ? "■" : "⦿"}</Text>
+     //</View> </Pressable>*/}
 
       <Pressable
         ref={sendButtonRef} // Ссылка на кнопку отправки для измерений
@@ -365,11 +369,35 @@ export const Bottom: FC<BottomProps> = ({
         // Движение пальца по экрану во время касания.
         onTouchMove={handleSendPressMove}
         // Удержание кнопки дольше delayLongPress.
-        onLongPress={handleSendLongPress}
+        onLongPress={() => {
+          handleSendLongPress();
+          onToggleAudioRecording();
+        }}
         // Порог времени (мс), после которого касание считается удержанием.
         delayLongPress={380}
         // Момент завершения касания (палец отпущен).
-        onPressOut={handleSendPressOut}
+        onPressOut={() => {
+          const shouldCancelVoice =
+            longPressTriggered.current &&
+            cancelRecordingRequested.current &&
+            isRecordingAudio;
+
+          const shouldSendVoice =
+            longPressTriggered.current &&
+            !cancelRecordingRequested.current &&
+            isRecordingAudio;
+
+          handleSendPressOut();
+
+          if (shouldCancelVoice) {
+            onCancelAudioRecording?.(); // стоп + удалить локальный файл, без отправки
+            return;
+          }
+
+          if (shouldSendVoice) {
+            onToggleAudioRecording(); // стоп + отправка
+          }
+        }}
         pressRetentionOffset={{
           top: 9999,
           bottom: 9999,

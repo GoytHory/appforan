@@ -66,8 +66,6 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
     }
   };
 
-
-
   /**
    * pickImage — функция для выбора фото из галереи
    *
@@ -80,14 +78,15 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
    * 6. Сохраняет в AsyncStorage
    */
   const pickImage = async (): Promise<void> => {
-    const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status: permStatus } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permStatus !== "granted") {
       Alert.alert("Ошибка", "Нужен доступ к фото!");
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
@@ -133,12 +132,17 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
   return (
     <View style={styles.container}>
       {/* АВАТАР: Кнопка для выбора фото */}
-      <TouchableOpacity onPress={isSavingAvatar ? undefined : pickImage} style={styles.avatarWrapper}>
+      <TouchableOpacity
+        onPress={isSavingAvatar ? undefined : pickImage}
+        style={styles.avatarWrapper}
+      >
         {avatar ? (
           <Image source={{ uri: avatar }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.placeholder]}>
-            <Text style={{ color: "#fff" }}>{isSavingAvatar ? "Загрузка..." : "Загрузить фото"}</Text>
+            <Text style={{ color: "#fff" }}>
+              {isSavingAvatar ? "Загрузка..." : "Загрузить фото"}
+            </Text>
           </View>
         )}
       </TouchableOpacity>
@@ -146,11 +150,7 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
       {/* ИМЯ ПОЛЬЗОВАТЕЛЯ */}
       <Text style={styles.label}>Твой никнейм:</Text>
       <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={myUsername}
-          editable={false}
-        />
+        <TextInput style={styles.input} value={myUsername} editable={false} />
       </View>
 
       <Text style={styles.statusText}>
