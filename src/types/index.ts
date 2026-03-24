@@ -341,7 +341,15 @@ export interface UseChatsReturnType {
  * UseNotificationsReturnType — типы возвращаемого значения хука useNotifications.
  */
 export interface UseNotificationsReturnType {
-  showLocalNotification: (title: string, body: string) => Promise<void>; // Функция показа
+  showLocalNotification: (
+    title: string,
+    body: string,
+    options?: { chatId?: string; senderAvatar?: string },
+  ) => Promise<void>; // Функция показа
+  syncPushTokenWithServer: () => Promise<void>;
+  pendingChatIdFromNotification: string | null;
+  clearPendingChatIdFromNotification: () => void;
+  clearNotificationsForChat: (chatId: string) => Promise<void>;
 }
 
 /**

@@ -122,6 +122,19 @@ export const updateMyAvatar = (
   });
 };
 
+export const updateMyPushToken = (
+  token: string,
+  pushToken: string,
+): Promise<{ ok: true }> => {
+  return requestJson<{ ok: true }>("/api/users/me/push-token", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ pushToken }),
+  });
+};
+
 export const searchUsers = (
   token: string,
   query: string,

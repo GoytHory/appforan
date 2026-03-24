@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     width: 220,
 
     borderRadius: 14,
-    marginBottom: 8,
+    marginBottom: 3,
     backgroundColor: "#1d2430",
   },
   audioCard: {

@@ -134,7 +134,11 @@ const formatMessage = (
 
 export function useChats(
   myUsername: string,
-  showLocalNotification: (title: string, body: string) => Promise<void>,
+  showLocalNotification: (
+    title: string,
+    body: string,
+    options?: { chatId?: string; senderAvatar?: string },
+  ) => Promise<void>,
   onAuthFailure: () => void,
 ): UseChatsReturnType {
   const [activeChatId, setActiveChatId] = useState<string>("");
@@ -609,6 +613,10 @@ export function useChats(
         void showLocalNotification(
           author,
           getPreviewText({ text: incoming.text, media: incoming.media }),
+          {
+            chatId: targetChatId,
+            senderAvatar: incoming.sender?.avatar,
+          },
         );
       }
 

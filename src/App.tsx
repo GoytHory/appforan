@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, useEffect } from "react";
 import { View, ActivityIndicator } from "react-native"; // Добавили Platform
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"; // Добавили сейф-зоны
 import LoginScreen from "./screens/LoginScreen";
@@ -12,7 +12,13 @@ import { COLORS } from "./constants/colors";
 const AppContent: FC = () => {
   const { myUsername, setMyUsername, isLoading, handleLogin, logout } =
     useAuth();
-  const { showLocalNotification } = useNotifications();
+  const {
+    showLocalNotification,
+    syncPushTokenWithServer,
+    pendingChatIdFromNotification,
+    clearPendingChatIdFromNotification,
+    clearNotificationsForChat,
+  } = useNotifications();
 
   // Достаем всё из useChats, включая allChats (если понадобится для меню)
   const {
@@ -39,6 +45,37 @@ const AppContent: FC = () => {
   });
 
   const { keyboardHeight } = useKeyboard();
+
+  useEffect(() => {
+    if (!myUsername) {
+      return;
+    }
+
+    void syncPushTokenWithServer();
+  }, [myUsername, syncPushTokenWithServer]);
+
+  useEffect(() => {
+    if (!pendingChatIdFromNotification) {
+      return;
+    }
+
+    setActiveChatId(pendingChatIdFromNotification);
+    void clearNotificationsForChat(pendingChatIdFromNotification);
+    clearPendingChatIdFromNotification();
+  }, [
+    pendingChatIdFromNotification,
+    setActiveChatId,
+    clearNotificationsForChat,
+    clearPendingChatIdFromNotification,
+  ]);
+
+  useEffect(() => {
+    if (!activeChatId) {
+      return;
+    }
+
+    void clearNotificationsForChat(activeChatId);
+  }, [activeChatId, clearNotificationsForChat]);
 
   if (isLoading) {
     return (
