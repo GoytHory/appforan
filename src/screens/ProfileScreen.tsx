@@ -1,30 +1,41 @@
-import React, { FC, useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, TextInput, Alert } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS } from '../constants/colors';
-import { ProfileScreenProps } from '../types';
-import { getMe, updateMyAvatar } from '../utils/api';
+import React, { FC, useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  TextInput,
+  Alert,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { COLORS } from "../constants/colors";
+import { ProfileScreenProps } from "../types";
+import { getMe, updateMyAvatar, uploadImageToServer } from "../utils/api";
 
 /**
  * ProfileScreen — экран профиля пользователя.
- * 
+ *
  * ЧТО ДЕЛАЕТ:
  * 1. Показывает аватар пользователя (или плейсхолдер)
  * 2. Позволяет выбрать новый аватар из галереи
  * 3. Показывает имя пользователя (пока только для чтения)
  * 4. Показывает кнопку "Настройки оформления" (пока заглушка)
- * 
+ *
  * ПАРАМЕТРЫ (Props):
  * - myUsername: имя пользователя
  * - setMyUsername: функция для изменения имени
  */
-const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) => {
+const ProfileScreen: FC<ProfileScreenProps> = ({
+  myUsername,
+  logout,
+  setMyUsername,
+}) => {
   // Состояние: URL аватара
   // Может быть строкой (URL) или null (если нет)
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [status, setStatus] = useState<'online' | 'offline'>('offline');
-  const [avatarUrlInput, setAvatarUrlInput] = useState<string>('');
+  const [status, setStatus] = useState<"online" | "offline">("offline");
   const [isSavingAvatar, setIsSavingAvatar] = useState<boolean>(false);
 
   /**
@@ -37,55 +48,29 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
 
   /**
    * loadProfile — загружает данные профиля из AsyncStorage
-   * 
+   *
    * ЧТО ДЕЛАЕТ:
    * 1. Получает сохранённый аватар из хранилища
    * 2. Если аватар есть, устанавливает его в состояние
    */
   const loadProfile = async (): Promise<void> => {
     try {
-      const token = await AsyncStorage.getItem('auth_token');
+      const token = await AsyncStorage.getItem("auth_token");
       if (!token) return;
 
       const { user } = await getMe(token);
       setAvatar(user.avatar || null);
-      setAvatarUrlInput(user.avatar || '');
-      setStatus(user.status || 'offline');
+      setStatus(user.status || "offline");
     } catch (e) {
       console.log("Ошибка загрузки профиля:", e);
     }
   };
 
-  const saveAvatar = async (avatarUrl: string): Promise<void> => {
-    if (!avatarUrl.trim()) {
-      Alert.alert('Ошибка', 'Укажи ссылку на аватар');
-      return;
-    }
 
-    try {
-      setIsSavingAvatar(true);
-      const token = await AsyncStorage.getItem('auth_token');
-      if (!token) {
-        Alert.alert('Сессия истекла', 'Войди заново');
-        return;
-      }
-
-      const { user } = await updateMyAvatar(token, avatarUrl.trim());
-      setAvatar(user.avatar || null);
-      setAvatarUrlInput(user.avatar || avatarUrl.trim());
-      setStatus(user.status || 'offline');
-      Alert.alert('Готово', 'Аватар обновлен');
-    } catch (e) {
-      console.log('Ошибка сохранения аватара:', e);
-      Alert.alert('Ошибка', 'Не удалось обновить аватар');
-    } finally {
-      setIsSavingAvatar(false);
-    }
-  };
 
   /**
    * pickImage — функция для выбора фото из галереи
-   * 
+   *
    * ЧТО ДЕЛАЕТ:
    * 1. Запрашивает разрешение на доступ к галереи
    * 2. Открывает галерею для выбора изображения
@@ -95,44 +80,65 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
    * 6. Сохраняет в AsyncStorage
    */
   const pickImage = async (): Promise<void> => {
-    // Шаг 1: Запрашиваем разрешение на доступ к медиа
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      // Если пользователь не дал разрешение
-      Alert.alert('Ошибка', 'Нужен доступ к фото!');
-      return;  // Выходим из функции
+    const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permStatus !== "granted") {
+      Alert.alert("Ошибка", "Нужен доступ к фото!");
+      return;
     }
 
-    // Шаг 2: Открываем галерею для выбора изображения
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,  // Только изображения
-      allowsEditing: true,                              // Разрешаем редактирование (обрезку)
-      aspect: [1, 1],                                   // Квадратное изображение
-      quality: 0.5,                                     // Сжимаем до 50% качества (экономим место)
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+      base64: true,
     });
 
-    // Шаг 3: Если пользователь не отменил выбор
-    if (!result.canceled) {
-      // Получаем URI первого выбранного изображения
-      const uri = result.assets[0].uri;
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
 
-      setAvatar(uri);
-      setAvatarUrlInput(uri);
-      await saveAvatar(uri);
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      Alert.alert("Ошибка", "Не удалось прочитать изображение");
+      return;
+    }
+
+    try {
+      setIsSavingAvatar(true);
+      const token = await AsyncStorage.getItem("auth_token");
+      if (!token) {
+        Alert.alert("Сессия истекла", "Войди заново");
+        return;
+      }
+
+      const uploaded = await uploadImageToServer(token, {
+        base64: asset.base64,
+        mimeType: asset.mimeType || "image/jpeg",
+        context: "avatar",
+      });
+
+      const { user } = await updateMyAvatar(token, uploaded.url);
+      setAvatar(user.avatar || uploaded.url);
+      setStatus(user.status || "offline");
+      Alert.alert("Готово", "Аватар обновлён");
+    } catch (e) {
+      console.log("Ошибка загрузки аватара:", e);
+      Alert.alert("Ошибка", "Не удалось загрузить аватар");
+    } finally {
+      setIsSavingAvatar(false);
     }
   };
 
   return (
     <View style={styles.container}>
       {/* АВАТАР: Кнопка для выбора фото */}
-      <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
+      <TouchableOpacity onPress={isSavingAvatar ? undefined : pickImage} style={styles.avatarWrapper}>
         {avatar ? (
-          // Если аватар есть, показываем изображение
           <Image source={{ uri: avatar }} style={styles.avatar} />
         ) : (
-          // Если аватара нет, показываем плейсхолдер
           <View style={[styles.avatar, styles.placeholder]}>
-            <Text style={{ color: '#fff' }}>Загрузить фото</Text>
+            <Text style={{ color: "#fff" }}>{isSavingAvatar ? "Загрузка..." : "Загрузить фото"}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -142,31 +148,14 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
-          value={myUsername}              // Текущее имя
-          editable={false}                // Пока не позволяем редактировать (может ломать логику)
+          value={myUsername}
+          editable={false}
         />
       </View>
 
       <Text style={styles.statusText}>
-        Статус: {status === 'online' ? 'В сети' : 'Не в сети'}
+        Статус: {status === "online" ? "В сети" : "Не в сети"}
       </Text>
-
-      <Text style={styles.label}>URL аватарки:</Text>
-      <TextInput
-        style={styles.avatarUrlInput}
-        value={avatarUrlInput}
-        onChangeText={setAvatarUrlInput}
-        autoCapitalize="none"
-        placeholder="https://..."
-        placeholderTextColor="#7f8897"
-      />
-
-      <TouchableOpacity
-        style={[styles.btn, { marginBottom: 12 }]}
-        onPress={() => void saveAvatar(avatarUrlInput)}
-      >
-        <Text style={styles.btnText}>{isSavingAvatar ? 'Сохранение...' : 'Сохранить аватар'}</Text>
-      </TouchableOpacity>
 
       {/* КНОПКА НАСТРОЕК (заглушка) */}
       <TouchableOpacity
@@ -175,6 +164,23 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
       >
         <Text style={styles.btnText}>Настройки оформления</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: "#b43a3a", marginTop: 12 }]}
+        onPress={() =>
+          Alert.alert("Выход", "Выйти из аккаунта?", [
+            { text: "Отмена", style: "cancel" },
+            {
+              text: "Выйти",
+              style: "destructive",
+              onPress: () => {
+                void logout();
+              },
+            },
+          ])
+        }
+      >
+        <Text style={styles.btnText}>Выйти из аккаунта</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -182,68 +188,58 @@ const ProfileScreen: FC<ProfileScreenProps> = ({ myUsername, setMyUsername }) =>
 // Стили для компонента
 const styles = StyleSheet.create({
   container: {
-    flex: 1,                                      // Занимает весь экран
+    flex: 1, // Занимает весь экран
     backgroundColor: COLORS.background,
-    alignItems: 'center',                         // Центрируем по горизонтали
-    paddingTop: 50,                               // Отступ сверху
+    alignItems: "center", // Центрируем по горизонтали
+    paddingTop: 50, // Отступ сверху
   },
   avatarWrapper: {
-    marginBottom: 30,                             // Отступ снизу
+    marginBottom: 30, // Отступ снизу
   },
   avatar: {
-    width: 150,                                   // Размер аватара
+    width: 150, // Размер аватара
     height: 150,
-    borderRadius: 75,                             // Круглый (половина ширины)
-    borderWidth: 2,                               // Граница
+    borderRadius: 75, // Круглый (половина ширины)
+    borderWidth: 2, // Граница
     borderColor: COLORS.myBubble,
   },
   placeholder: {
-    backgroundColor: '#444',                      // Тёмный фон для плейсхолдера
-    justifyContent: 'center',                     // Центрируем текст
-    alignItems: 'center',
+    backgroundColor: "#444", // Тёмный фон для плейсхолдера
+    justifyContent: "center", // Центрируем текст
+    alignItems: "center",
   },
   label: {
-    color: '#888',                                // Серый цвет
-    alignSelf: 'flex-start',                      // Прижимаем влево
-    marginLeft: '10%',                            // Отступ слева
-    marginBottom: 5,                              // Отступ снизу
+    color: "#888", // Серый цвет
+    alignSelf: "flex-start", // Прижимаем влево
+    marginLeft: "10%", // Отступ слева
+    marginBottom: 5, // Отступ снизу
   },
   inputContainer: {
-    width: '85%',                                 // 85% ширины
-    backgroundColor: '#333',                      // Тёмный фон
-    borderRadius: 10,                             // Закруглённые углы
-    padding: 15,                                  // Внутренний отступ
-    marginBottom: 20,                             // Отступ снизу
+    width: "85%", // 85% ширины
+    backgroundColor: "#333", // Тёмный фон
+    borderRadius: 10, // Закруглённые углы
+    padding: 15, // Внутренний отступ
+    marginBottom: 20, // Отступ снизу
   },
   input: {
-    color: '#fff',                                // Белый текст
-    fontSize: 18,                                 // Большой размер
+    color: "#fff", // Белый текст
+    fontSize: 18, // Большой размер
   },
   statusText: {
-    color: '#c0c8d8',
+    color: "#c0c8d8",
     marginBottom: 14,
-  },
-  avatarUrlInput: {
-    width: '85%',
-    backgroundColor: '#333',
-    borderRadius: 10,
-    padding: 12,
-    color: '#fff',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#4a5366',
   },
   btn: {
-    width: '85%',                                 // 85% ширины
-    padding: 15,                                  // Внутренний отступ
+    width: "85%", // 85% ширины
+    padding: 15, // Внутренний отступ
     backgroundColor: COLORS.myBubble,
-    borderRadius: 10,                             // Закруглённые углы
-    alignItems: 'center',                         // Центрируем текст
+    borderRadius: 10, // Закруглённые углы
+    alignItems: "center", // Центрируем текст
   },
   btnText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  }
+    color: "#fff",
+    fontWeight: "bold",
+  },
 });
 
 export default ProfileScreen;

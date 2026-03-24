@@ -84,26 +84,28 @@ export function useAuth(): UseAuthReturnType {
    * 2. Обновляет состояние (myUsername)
    */
   const handleLogin = async (name: string, password: string, mode: 'login' | 'register'): Promise<void> => {
-    try {
-      const authResponse = mode === 'register'
-        ? await registerUser(name, password)
-        : await loginUser(name, password);
+  try {
+    console.log('🔄 Отправляю данные на сервер...');
+    const authResponse = mode === 'register'
+      ? await registerUser(name, password)
+      : await loginUser(name, password);
 
-      await AsyncStorage.multiSet([
-        ['user_name', authResponse.user.username],
-        ['auth_token', authResponse.token]
-      ]);
+    console.log('✅ Ответ получен, сохраняю сессию...');
+    await AsyncStorage.multiSet([
+      ['user_name', authResponse.user.username],
+      ['auth_token', authResponse.token]
+    ]);
 
-      setSocketToken(authResponse.token);
+    setSocketToken(authResponse.token);
+    console.log('✅ Сессия сохранена, обновляю статус...');
 
-      // Обновляем состояние приложения
-      setMyUsername(authResponse.user.username);
-    } catch (e) {
-      // Если сохранение не удалось
-      console.log("Ошибка логина:", e);
-      throw e;
-    }
-  };
+    setMyUsername(authResponse.user.username);
+    console.log('✅ Все готово!');
+  } catch (e) {
+    console.log("❌ Ошибка логина:", e);
+    throw e;
+  }
+};
 
   // Возвращаем объект с нужными данными и функциями
   return { myUsername, setMyUsername, isLoading, handleLogin, logout: clearAuthState };

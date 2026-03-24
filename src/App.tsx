@@ -1,38 +1,50 @@
-import React, { FC } from 'react';
-import { View, ActivityIndicator } from 'react-native'; // Добавили Platform
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'; // Добавили сейф-зоны
-import LoginScreen from './screens/LoginScreen';
-import MainScreen from './components/MainScreen';
-import { useAuth } from './hooks/useAuth';
-import { useNotifications } from './hooks/useNotifications';
-import { useChats } from './hooks/useChats';
-import { useKeyboard } from './hooks/useKeyboard';
-import { COLORS } from './constants/colors';
+import React, { FC } from "react";
+import { View, ActivityIndicator } from "react-native"; // Добавили Platform
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"; // Добавили сейф-зоны
+import LoginScreen from "./screens/LoginScreen";
+import MainScreen from "./components/MainScreen";
+import { useAuth } from "./hooks/useAuth";
+import { useNotifications } from "./hooks/useNotifications";
+import { useChats } from "./hooks/useChats";
+import { useKeyboard } from "./hooks/useKeyboard";
+import { COLORS } from "./constants/colors";
 
 const AppContent: FC = () => {
-  const { myUsername, setMyUsername, isLoading, handleLogin, logout } = useAuth();
+  const { myUsername, setMyUsername, isLoading, handleLogin, logout } =
+    useAuth();
   const { showLocalNotification } = useNotifications();
-  
+
   // Достаем всё из useChats, включая allChats (если понадобится для меню)
   const {
     activeChatId,
     setActiveChatId,
     currentMessages,
     currentTitle,
+    currentChatAvatar,
+    currentParticipantUserId,
+    currentChatStatus,
+    currentChatIsDirect,
     scrollRef,
     handleSend,
+    handleSendMedia,
     chatList,
     searchUsers,
-    createDirectChat
+    createDirectChat,
   } = useChats(myUsername, showLocalNotification, () => {
     void logout();
   });
-  
+
   const { keyboardHeight } = useKeyboard();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center' }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: COLORS.background,
+          justifyContent: "center",
+        }}
+      >
         <ActivityIndicator size="large" color={COLORS.myBubble} />
       </View>
     );
@@ -44,17 +56,26 @@ const AppContent: FC = () => {
 
   // Обертка SafeAreaView внутри контента, чтобы она знала о контексте провайдера
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: COLORS.background }}
+      edges={["top", "bottom"]}
+    >
       <MainScreen
+        logout={logout}
         myUsername={myUsername}
         setMyUsername={setMyUsername}
         currentTitle={currentTitle}
         currentMessages={currentMessages}
+        currentChatAvatar={currentChatAvatar}
+        currentParticipantUserId={currentParticipantUserId}
+        currentChatStatus={currentChatStatus}
+        currentChatIsDirect={currentChatIsDirect}
         scrollRef={scrollRef}
         keyboardHeight={keyboardHeight}
         activeChatId={activeChatId}
         setActiveChatId={setActiveChatId}
         handleSend={handleSend}
+        handleSendMedia={handleSendMedia}
         chatList={chatList}
         searchUsers={searchUsers}
         createDirectChat={createDirectChat}

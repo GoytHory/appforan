@@ -1,17 +1,28 @@
-import React, { FC, useState } from 'react';
-import { StyleSheet, View, Modal, TouchableWithoutFeedback, FlatList, Text, TouchableOpacity, Image, TextInput } from 'react-native';
-import { COLORS } from '../constants/colors';
-import { ChatListMenuProps, SearchUser, ChatListItem } from '../types';
+import React, { FC, useState } from "react";
+import {
+  StyleSheet,
+  View,
+  Modal,
+  TouchableWithoutFeedback,
+  FlatList,
+  Text,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  Alert,
+} from "react-native";
+import { COLORS } from "../constants/colors";
+import { ChatListMenuProps, SearchUser, ChatListItem } from "../types";
 
 /**
  * ChatListMenu — компонент меню списка чатов.
- * 
+ *
  * ЧТО ДЕЛАЕТ:
  * 1. Отображает модальное окно внизу экрана
  * 2. Показывает список всех доступных чатов (FlatList для эффективности)
  * 3. Каждый чат показывает: аватар, название, последнее сообщение, время
  * 4. При нажатии на чат вызывает onSelectChat и закрывает меню
- * 
+ *
  * ПАРАМЕТРЫ (Props):
  * - visible: видимо ли меню (true/false)
  * - onClose: функция для закрытия меню
@@ -19,14 +30,14 @@ import { ChatListMenuProps, SearchUser, ChatListItem } from '../types';
  */
 
 export const ChatListMenu: FC<ChatListMenuProps> = ({
-  visible,              // Видимо ли меню
-  onClose,              // Функция закрытия
-  onSelectChat,         // Функция выбора чата
+  visible, // Видимо ли меню
+  onClose, // Функция закрытия
+  onSelectChat, // Функция выбора чата
   chats,
   searchUsers,
-  createDirectChat
+  createDirectChat,
 }) => {
-  const [query, setQuery] = useState<string>('');
+  const [query, setQuery] = useState<string>("");
   const [foundUsers, setFoundUsers] = useState<SearchUser[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
 
@@ -42,7 +53,7 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
       const users = await searchUsers(trimmed);
       setFoundUsers(users);
     } catch (err) {
-      console.log('Ошибка поиска:', err);
+      console.log("Ошибка поиска:", err);
       setFoundUsers([]);
     } finally {
       setIsSearching(false);
@@ -50,47 +61,52 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
   };
 
   const handleCreateDirect = async (userId: string): Promise<void> => {
+    if (!userId) {
+      Alert.alert("Ошибка", "Не удалось определить ID пользователя");
+      return;
+    }
+
     try {
       const chatId = await createDirectChat(userId);
       onSelectChat(chatId);
-      setQuery('');
+      setQuery("");
       setFoundUsers([]);
       onClose();
     } catch (err) {
-      console.log('Ошибка создания персонального чата:', err);
+      console.log("Ошибка создания персонального чата:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Не удалось создать персональный чат";
+      Alert.alert("Ошибка", message);
     }
   };
 
   /**
    * renderChatItem — функция рендеринга одного элемента чата
-   * 
+   *
    * Эту функцию вызывает FlatList для каждого элемента в DATA.
-   * 
+   *
    * ПАРАМЕТР item: объект с данными чата
    */
   const renderChatItem = ({ item }: { item: ChatListItem }) => (
     <TouchableOpacity
-      style={styles.chatItem}                    // Стили элемента
+      style={styles.chatItem} // Стили элемента
       onPress={() => {
-        console.log("Выбран чат:", item.name);   // Лог для отладки
-        onSelectChat(item.id);                   // Передаём ID чата в родителя
-        onClose();                               // Закрываем меню
+        console.log("Выбран чат:", item.name); // Лог для отладки
+        onSelectChat(item.id); // Передаём ID чата в родителя
+        onClose(); // Закрываем меню
       }}
     >
       {/* Аватар чата */}
       <View style={styles.avatarContainer}>
         {item.avatarUrl ? (
           // Если есть URL аватара, показываем изображение
-          <Image
-            source={{ uri: item.avatarUrl }}
-            style={styles.avatarImage}
-          />
+          <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
         ) : (
           // Если нет, показываем плейсхолдер с первой буквой имени
           <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarLetter}>
-              {item.name[0]}
-            </Text>
+            <Text style={styles.avatarLetter}>{item.name[0]}</Text>
           </View>
         )}
       </View>
@@ -102,7 +118,14 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
           <View style={styles.chatNameRow}>
             <Text style={styles.chatName}>{item.name}</Text>
             {item.status && (
-              <View style={[styles.statusDot, item.status === 'online' ? styles.statusOnline : styles.statusOffline]} />
+              <View
+                style={[
+                  styles.statusDot,
+                  item.status === "online"
+                    ? styles.statusOnline
+                    : styles.statusOffline,
+                ]}
+              />
             )}
           </View>
           <Text style={styles.chatTime}>{item.time}</Text>
@@ -117,10 +140,10 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
 
   return (
     <Modal
-      transparent={true}                         // Прозрачный фон
-      visible={visible}                           // Показывать, если true
-      animationType="slide"                       // Анимация: появление снизу
-      onRequestClose={onClose}                   // Закрыть по системной кнопке (Android)
+      transparent={true} // Прозрачный фон
+      visible={visible} // Показывать, если true
+      animationType="slide" // Анимация: появление снизу
+      onRequestClose={onClose} // Закрыть по системной кнопке (Android)
     >
       {/* Прозрачный фон, при нажатии на который меню закрывается */}
       <TouchableWithoutFeedback onPress={onClose}>
@@ -143,8 +166,13 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
                   onChangeText={setQuery}
                   autoCapitalize="none"
                 />
-                <TouchableOpacity style={styles.searchBtn} onPress={() => void runSearch()}>
-                  <Text style={styles.searchBtnText}>{isSearching ? '...' : 'Найти'}</Text>
+                <TouchableOpacity
+                  style={styles.searchBtn}
+                  onPress={() => void runSearch()}
+                >
+                  <Text style={styles.searchBtnText}>
+                    {isSearching ? "..." : "Найти"}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -153,12 +181,38 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
                   {foundUsers.map((user) => (
                     <View key={user.id} style={styles.searchResultRow}>
                       <View style={styles.searchUserInfo}>
+                        {user.avatar ? (
+                          <Image
+                            source={{ uri: user.avatar }}
+                            style={styles.searchAvatarImage}
+                          />
+                        ) : (
+                          <View style={styles.searchAvatarPlaceholder}>
+                            <Text style={styles.searchAvatarLetter}>
+                              {user.username.slice(0, 1).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
                         <View style={styles.statusDotWrap}>
-                          <View style={[styles.statusDot, user.status === 'online' ? styles.statusOnline : styles.statusOffline]} />
+                          <View
+                            style={[
+                              styles.statusDot,
+                              user.status === "online"
+                                ? styles.statusOnline
+                                : styles.statusOffline,
+                            ]}
+                          />
                         </View>
-                        <Text style={styles.searchUsername}>{user.username}</Text>
+                        <Text style={styles.searchUsername}>
+                          {user.username}
+                        </Text>
                       </View>
-                      <TouchableOpacity style={styles.startChatBtn} onPress={() => void handleCreateDirect(user.id)}>
+                      <TouchableOpacity
+                        style={styles.startChatBtn}
+                        onPress={() =>
+                          void handleCreateDirect(user.id || user._id || "")
+                        }
+                      >
                         <Text style={styles.startChatText}>Написать</Text>
                       </TouchableOpacity>
                     </View>
@@ -168,11 +222,11 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
 
               {/* Список чатов используя FlatList (эффективен для больших списков) */}
               <FlatList
-                data={chats}                       // Данные для списка
-                renderItem={renderChatItem}       // Функция рендеринга каждого элемента
-                keyExtractor={item => item.id}   // Функция получения уникального ключа
-                contentContainerStyle={{ paddingBottom: 20 }}  // Отступ снизу списка
-                showsVerticalScrollIndicator={false}  // Скрываем скроллбар
+                data={chats} // Данные для списка
+                renderItem={renderChatItem} // Функция рендеринга каждого элемента
+                keyExtractor={(item) => item.id} // Функция получения уникального ключа
+                contentContainerStyle={{ paddingBottom: 20 }} // Отступ снизу списка
+                showsVerticalScrollIndicator={false} // Скрываем скроллбар
               />
             </View>
           </TouchableWithoutFeedback>
@@ -185,83 +239,83 @@ export const ChatListMenu: FC<ChatListMenuProps> = ({
 // Стили для компонента
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,                                      // Занимает весь экран
-    backgroundColor: 'transparent',               // Прозрачный фон
-    justifyContent: 'flex-end',                  // Меню внизу
+    flex: 1, // Занимает весь экран
+    backgroundColor: "transparent", // Прозрачный фон
+    justifyContent: "flex-end", // Меню внизу
   },
   menuContainer: {
-    height: '75%',                                // 3/4 высоты экрана
+    height: "75%", // 3/4 высоты экрана
     backgroundColor: COLORS.background,
-    borderTopLeftRadius: 30,                      // Закруглённые углы сверху
+    borderTopLeftRadius: 30, // Закруглённые углы сверху
     borderTopRightRadius: 30,
-    padding: 20,                                  // Внутренние отступы
-    elevation: 24,                                // Тень для Android
-    shadowColor: "#ffffff",                       // Цвет тени для iOS
-    shadowOffset: { width: 0, height: -15 },      // Смещение тени вверх
+    padding: 20, // Внутренние отступы
+    elevation: 24, // Тень для Android
+    shadowColor: "#ffffff", // Цвет тени для iOS
+    shadowOffset: { width: 0, height: -15 }, // Смещение тени вверх
     shadowOpacity: 0.6,
-    shadowRadius: 20,                             // Размытие тени
+    shadowRadius: 20, // Размытие тени
   },
   dragHandle: {
-    width: 50,                                    // Ширина полоски
-    height: 4,                                    // Высота
-    backgroundColor: 'rgba(255,255,255,0.1)',    // Полупрозрачная белая полоска
-    borderRadius: 2,                              // Закруглённые края
-    alignSelf: 'center',                          // Центрируем
-    marginBottom: 15,                             // Отступ снизу
+    width: 50, // Ширина полоски
+    height: 4, // Высота
+    backgroundColor: "rgba(255,255,255,0.1)", // Полупрозрачная белая полоска
+    borderRadius: 2, // Закруглённые края
+    alignSelf: "center", // Центрируем
+    marginBottom: 15, // Отступ снизу
   },
   menuTitle: {
-    fontSize: 22,                                 // Размер шрифта
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 20,                             // Отступ снизу
-    marginLeft: 5,                                // Маленький отступ слева
+    fontSize: 22, // Размер шрифта
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 20, // Отступ снизу
+    marginLeft: 5, // Маленький отступ слева
   },
   chatItem: {
-    backgroundColor: '#191a22ab',                 // Полупрозрачный тёмный цвет
-    flexDirection: 'row',                         // Элементы в ряд
-    alignItems: 'center',                         // Центрируем по вертикали
-    borderRadius: 20,                             // Закруглённые углы
-    padding: 10,                                  // Внутренние отступы
-    borderWidth: 0.5,                             // Тонкая граница
-    borderBottomWidth: 1.5,                       // Нижняя граница толще
-    borderColor: '#40475fab',
-    marginBottom: 5,                              // Отступ между элементами
+    backgroundColor: "#191a22ab", // Полупрозрачный тёмный цвет
+    flexDirection: "row", // Элементы в ряд
+    alignItems: "center", // Центрируем по вертикали
+    borderRadius: 20, // Закруглённые углы
+    padding: 10, // Внутренние отступы
+    borderWidth: 0.5, // Тонкая граница
+    borderBottomWidth: 1.5, // Нижняя граница толще
+    borderColor: "#40475fab",
+    marginBottom: 5, // Отступ между элементами
   },
   avatarContainer: {
-    marginRight: 15,                              // Отступ от информации
+    marginRight: 15, // Отступ от информации
   },
   avatarImage: {
-    width: 55,                                    // Размер аватара
+    width: 55, // Размер аватара
     height: 55,
-    borderRadius: 27.5,                           // Круглый аватар (половина ширины)
+    borderRadius: 27.5, // Круглый аватар (половина ширины)
   },
   avatarPlaceholder: {
     width: 55,
     height: 55,
     borderRadius: 27.5,
-    backgroundColor: '#4d799c',                   // Голубой фон
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#4d799c", // Голубой фон
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarLetter: {
-    color: 'white',
+    color: "white",
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   chatInfo: {
-    flex: 1,                                      // Занимает оставшееся место
+    flex: 1, // Занимает оставшееся место
   },
   searchRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
     marginBottom: 12,
   },
   searchInput: {
     flex: 1,
-    backgroundColor: '#232934',
-    borderColor: '#3c4558',
+    backgroundColor: "#232934",
+    borderColor: "#3c4558",
     borderWidth: 1,
-    color: '#fff',
+    color: "#fff",
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
@@ -270,41 +324,59 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.myBubble,
     borderRadius: 10,
     minWidth: 72,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 10,
   },
   searchBtnText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: "#fff",
+    fontWeight: "700",
   },
   searchResultsBlock: {
     marginBottom: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#3c4558',
-    overflow: 'hidden',
+    borderColor: "#3c4558",
+    overflow: "hidden",
   },
   searchResultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#232934',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#232934",
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#2f3644',
+    borderBottomColor: "#2f3644",
   },
   searchUserInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
+  },
+  searchAvatarImage: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  searchAvatarPlaceholder: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#4d799c",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  searchAvatarLetter: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 12,
   },
   statusDotWrap: {
     width: 12,
     height: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusDot: {
     width: 8,
@@ -312,45 +384,45 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   statusOnline: {
-    backgroundColor: '#4ad97d',
+    backgroundColor: "#4ad97d",
   },
   statusOffline: {
-    backgroundColor: '#78839a',
+    backgroundColor: "#78839a",
   },
   searchUsername: {
-    color: '#fff',
+    color: "#fff",
   },
   startChatBtn: {
-    backgroundColor: '#304b6d',
+    backgroundColor: "#304b6d",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
   startChatText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: "#fff",
+    fontWeight: "600",
   },
   chatHeader: {
-    flexDirection: 'row',                         // Название и время в ряд
-    justifyContent: 'space-between',              // Первое влево, второе вправо
-    marginBottom: 5,                              // Отступ снизу
+    flexDirection: "row", // Название и время в ряд
+    justifyContent: "space-between", // Первое влево, второе вправо
+    marginBottom: 5, // Отступ снизу
   },
   chatNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   chatName: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   chatTime: {
-    color: 'rgba(255,255,255,0.4)',             // Полупрозрачный белый
+    color: "rgba(255,255,255,0.4)", // Полупрозрачный белый
     fontSize: 12,
   },
   lastMsg: {
-    color: 'rgba(255,255,255,0.5)',             // Полупрозрачный белый
+    color: "rgba(255,255,255,0.5)", // Полупрозрачный белый
     fontSize: 14,
   },
 });
