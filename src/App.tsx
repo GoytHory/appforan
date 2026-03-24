@@ -22,9 +22,12 @@ const AppContent: FC = () => {
     currentTitle,
     currentChatAvatar,
     currentParticipantUserId,
+    currentChatHasMoreMessages,
+    currentChatIsLoadingOlderMessages,
     currentChatStatus,
     currentChatIsDirect,
     scrollRef,
+    loadOlderMessages,
     handleSend,
     handleSendMedia,
     chatList,
@@ -68,12 +71,15 @@ const AppContent: FC = () => {
         currentMessages={currentMessages}
         currentChatAvatar={currentChatAvatar}
         currentParticipantUserId={currentParticipantUserId}
+        currentChatHasMoreMessages={currentChatHasMoreMessages}
+        currentChatIsLoadingOlderMessages={currentChatIsLoadingOlderMessages}
         currentChatStatus={currentChatStatus}
         currentChatIsDirect={currentChatIsDirect}
         scrollRef={scrollRef}
         keyboardHeight={keyboardHeight}
         activeChatId={activeChatId}
         setActiveChatId={setActiveChatId}
+        loadOlderMessages={loadOlderMessages}
         handleSend={handleSend}
         handleSendMedia={handleSendMedia}
         chatList={chatList}

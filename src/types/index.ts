@@ -32,6 +32,7 @@ export interface Message {
   author: string; // Имя автора
   sender: "me" | "other"; // Только эти два значения (литерал)
   time: string; // Время в виде строки
+  timestamp?: string;
 }
 
 export interface MessageMedia {
@@ -57,6 +58,12 @@ export interface Chat {
   participantUserId?: string;
   lastMessageText?: string;
   lastMessageTime?: string;
+  updatedAt?: string;
+  oldestMessageTimestamp?: string;
+  hasLoadedInitialMessages?: boolean;
+  hasMoreMessages?: boolean;
+  isLoadingInitialMessages?: boolean;
+  isLoadingOlderMessages?: boolean;
 }
 
 export interface SearchUser {
@@ -123,6 +130,19 @@ export interface IncomingMessage {
   timestamp?: string | number; // ISO время или миллисекунды
   chatId?: string; // ID чата
   time?: string; // Уже отформатированное время
+}
+
+export interface ChatUpdatePayload {
+  chatId: string;
+  updatedAt?: string | number;
+  otherUser?: SearchUser | null;
+  lastMessage?: {
+    text?: string;
+    previewText?: string;
+    mediaType?: "image" | "audio";
+    sender?: string;
+    timestamp?: string | number;
+  } | null;
 }
 
 /**
@@ -192,10 +212,13 @@ export interface MainScreenProps {
   currentMessages: Message[]; // Сообщения текущего чата
   currentChatAvatar?: string;
   currentParticipantUserId?: string;
+  currentChatHasMoreMessages: boolean;
+  currentChatIsLoadingOlderMessages: boolean;
   scrollRef: React.RefObject<any>; // Ссылка на ScrollView для прокрутки
   keyboardHeight: number; // Высота клавиатуры
   activeChatId: string; // ID активного чата
   setActiveChatId: (id: string) => void; // Функция для смены чата
+  loadOlderMessages: () => void;
   handleSend: (text: string, chatId: string, username: string) => void; // Функция отправки
   handleSendMedia: (chatId: string, media: MessageMedia, text?: string) => void;
   currentChatStatus?: "online" | "offline";
@@ -235,6 +258,9 @@ export interface BottomProps {
 export interface MidlerProps {
   chatMessages: Message[]; // Массив сообщений
   scrollRef: React.RefObject<any>; // Ссылка для скролла
+  onReachTop: () => void;
+  isLoadingOlderMessages?: boolean;
+  hasMoreMessages?: boolean;
 }
 
 /**
@@ -292,9 +318,12 @@ export interface UseChatsReturnType {
   currentTitle: string; // Название активного чата
   currentChatAvatar?: string;
   currentParticipantUserId?: string;
+  currentChatHasMoreMessages: boolean;
+  currentChatIsLoadingOlderMessages: boolean;
   currentChatStatus?: "online" | "offline";
   currentChatIsDirect: boolean;
   scrollRef: React.RefObject<any>; // Ссылка для скролла
+  loadOlderMessages: () => void;
   handleSend: (text: string, chatId: string, username: string) => void; // Функция отправки
   handleSendMedia: (chatId: string, media: MessageMedia, text?: string) => void;
   searchUsers: (query: string) => Promise<SearchUser[]>;

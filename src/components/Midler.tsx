@@ -1,5 +1,12 @@
-import React, { FC } from "react";
-import { ScrollView, StyleSheet, View, Text, Image } from "react-native";
+import React, { FC, useEffect, useRef } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { COLORS } from "../constants/colors";
 import { MidlerProps, Message } from "../types";
 
@@ -20,17 +27,58 @@ import { MidlerProps, Message } from "../types";
 export const Midler: FC<MidlerProps> = ({
   chatMessages, // Массив сообщений
   scrollRef, // Ссылка для скролла
+  onReachTop,
+  isLoadingOlderMessages,
+  hasMoreMessages,
 }) => {
+  const contentHeightRef = useRef(0);
+  const shouldPreservePositionRef = useRef(false);
+  const topRequestLockedRef = useRef(false);
+
+  useEffect(() => {
+    if (isLoadingOlderMessages) {
+      shouldPreservePositionRef.current = true;
+    }
+  }, [isLoadingOlderMessages]);
+
   return (
     <ScrollView
       ref={scrollRef} // Ассоциируем с ссылкой
       style={styles.middleField}
-      onContentSizeChange={() => {
-        // Когда контент изменяется (например, добавилось сообщение),
-        // автоматически прокручиваем вниз
-        scrollRef.current?.scrollToEnd({ animated: true });
+      scrollEventThrottle={16}
+      onContentSizeChange={(_, height) => {
+        if (shouldPreservePositionRef.current && height > contentHeightRef.current) {
+          const delta = height - contentHeightRef.current;
+          scrollRef.current?.scrollTo({ y: delta, animated: false });
+          shouldPreservePositionRef.current = false;
+        }
+
+        contentHeightRef.current = height;
+      }}
+      onScroll={(event) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+
+        if (offsetY > 120) {
+          topRequestLockedRef.current = false;
+        }
+
+        if (
+          offsetY <= 40 &&
+          hasMoreMessages &&
+          !isLoadingOlderMessages &&
+          !topRequestLockedRef.current
+        ) {
+          topRequestLockedRef.current = true;
+          onReachTop();
+        }
       }}
     >
+      {isLoadingOlderMessages ? (
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator size="small" color={COLORS.myBubble} />
+        </View>
+      ) : null}
+
       {/* Рендерим каждое сообщение */}
       {chatMessages.map((msg: Message) => {
         // Определяем: это своё сообщение или чужое
@@ -124,5 +172,9 @@ const styles = StyleSheet.create({
     color: COLORS.time, // Полупрозрачный цвет
     alignSelf: "flex-end", // Прижимаем вправо
     marginTop: 1, // Маленький отступ от текста
+  },
+  loaderWrap: {
+    paddingVertical: 10,
+    alignItems: "center",
   },
 });
