@@ -46,6 +46,7 @@ export const Midler: FC<MidlerProps> = ({
   const offsetYRef = useRef(0);
   const shouldPreservePositionRef = useRef(false);
   const topRequestLockedRef = useRef(false);
+  const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isAnchoringToBottom, setIsAnchoringToBottom] = useState(true);
   const [playingMessageId, setPlayingMessageId] = useState<
@@ -118,6 +119,32 @@ export const Midler: FC<MidlerProps> = ({
       setPlayingMessageId(null);
     }
   };
+
+  useEffect(() => {
+    chatMessages.forEach((msg) => {
+      if (msg.media?.type !== "image" || !msg.media.url) return;
+
+      const url = msg.media.url;
+      if (imageRatios[url]) return;
+
+      Image.getSize(
+        url,
+        (w, h) => {
+          if (w <= 0 || h <= 0) return;
+          setImageRatios((prev) => {
+            if (prev[url]) return prev;
+            return { ...prev, [url]: w / h };
+          });
+        },
+        () => {
+          setImageRatios((prev) => {
+            if (prev[url]) return prev;
+            return { ...prev, [url]: 1 };
+          });
+        },
+      );
+    });
+  }, [chatMessages, imageRatios]);
 
   useEffect(() => {
     if (isLoadingInitialMessages !== false) {
@@ -231,7 +258,11 @@ export const Midler: FC<MidlerProps> = ({
               {msg.media?.type === "image" && msg.media.url ? (
                 <Image
                   source={{ uri: msg.media.url }}
-                  style={styles.messageImage}
+                  style={[
+                    styles.messageImage,
+                    { aspectRatio: imageRatios[msg.media.url] || 1 },
+                  ]}
+                  resizeMode="cover"
                 />
               ) : null}
 
@@ -307,7 +338,7 @@ const styles = StyleSheet.create({
   },
   messageImage: {
     width: 220,
-    height: 220,
+
     borderRadius: 14,
     marginBottom: 8,
     backgroundColor: "#1d2430",
