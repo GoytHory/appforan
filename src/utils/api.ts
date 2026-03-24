@@ -28,7 +28,8 @@ export interface DirectChatPreview {
 
 export interface MessageMedia {
   type: "image" | "audio";
-  url: string;
+  url?: string;
+  objectKey?: string;
   mimeType?: string;
   durationSec?: number;
 }
@@ -106,14 +107,14 @@ export const getMe = (token: string): Promise<{ user: AuthUser }> => {
 
 export const updateMyAvatar = (
   token: string,
-  avatar: string,
+  avatarObjectKey: string,
 ): Promise<{ user: AuthUser }> => {
   return requestJson<{ user: AuthUser }>("/api/users/me", {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ avatar }),
+    body: JSON.stringify({ avatarObjectKey }),
   });
 };
 
@@ -192,8 +193,33 @@ export const getChatMessages = (
 export const uploadImageToServer = (
   token: string,
   payload: { base64: string; mimeType?: string; context?: "avatar" | "chat" },
-): Promise<{ url: string; displayUrl?: string }> => {
-  return requestJson<{ url: string; displayUrl?: string }>("/api/media/image", {
+): Promise<{ objectKey: string; url: string; mediaType: "image" }> => {
+  return requestJson<{ objectKey: string; url: string; mediaType: "image" }>("/api/media/image", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+};
+
+export const uploadAudioToServer = (
+  token: string,
+  payload: { base64: string; mimeType?: string; durationSec?: number },
+): Promise<{
+  objectKey: string;
+  url: string;
+  mediaType: "audio";
+  mimeType?: string;
+  durationSec?: number;
+}> => {
+  return requestJson<{
+    objectKey: string;
+    url: string;
+    mediaType: "audio";
+    mimeType?: string;
+    durationSec?: number;
+  }>("/api/media/audio", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

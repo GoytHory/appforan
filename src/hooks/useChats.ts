@@ -269,7 +269,7 @@ export function useChats(
 
       if (existingChat?.isLoadingInitialMessages) {
         skipReason = "already loading";
-      } else if (existingChat?.hasLoadedInitialMessages && hasMessages) {
+      } else if (hasMessages) {
         skipReason = "already has messages";
       }
 
@@ -756,7 +756,7 @@ export function useChats(
     media: MessageMedia,
     text?: string,
   ): void => {
-    if (!chatId || !media?.url || !media?.type) {
+    if (!chatId || !media?.type || (!media.url && !media.objectKey)) {
       return;
     }
 

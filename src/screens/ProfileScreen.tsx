@@ -118,7 +118,7 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
         context: "avatar",
       });
 
-      const { user } = await updateMyAvatar(token, uploaded.url);
+      const { user } = await updateMyAvatar(token, uploaded.objectKey);
       setAvatar(user.avatar || uploaded.url);
       setStatus(user.status || "offline");
       Alert.alert("Готово", "Аватар обновлён");

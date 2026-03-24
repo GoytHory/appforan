@@ -31,6 +31,8 @@ export const Bottom: FC<BottomProps> = ({
   onTextChange, // Функция изменения
   onSend, // Функция отправки
   onOpenMediaPicker,
+  onToggleAudioRecording,
+  isRecordingAudio,
 }) => {
   // Ref для фокуса на инпут после отправки
   // useRef создаёт ссылку, которая не теряется при ре-рендере
@@ -340,6 +342,19 @@ export const Bottom: FC<BottomProps> = ({
       >
         {/* Иконка прикрепления */}
         <Text style={styles.buttonText}>⧜</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={onToggleAudioRecording}
+        style={({ pressed }) => [
+          {
+            transform: [{ scale: pressed ? 0.9 : 1 }],
+            backgroundColor: isRecordingAudio ? "#8a3a4c" : "#4d799c",
+          },
+          styles.button,
+        ]}
+      >
+        <Text style={styles.buttonText}>{isRecordingAudio ? "■" : "⦿"}</Text>
       </Pressable>
 
       <Pressable

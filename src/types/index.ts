@@ -37,7 +37,8 @@ export interface Message {
 
 export interface MessageMedia {
   type: "image" | "audio";
-  url: string;
+  url?: string;
+  objectKey?: string;
   mimeType?: string;
   durationSec?: number;
 }
@@ -251,6 +252,8 @@ export interface BottomProps {
   onTextChange: (text: string) => void; // Функция при изменении текста
   onSend: () => void; // Функция при отправке
   onOpenMediaPicker: () => void;
+  onToggleAudioRecording: () => void;
+  isRecordingAudio: boolean;
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Audio, AVPlaybackStatus } from "expo-av";
 import { COLORS } from "../constants/colors";
 import { MidlerProps, Message } from "../types";
 
@@ -40,6 +41,71 @@ export const Midler: FC<MidlerProps> = ({
   const topRequestLockedRef = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isAnchoringToBottom, setIsAnchoringToBottom] = useState(true);
+  const [playingMessageId, setPlayingMessageId] = useState<string | number | null>(
+    null,
+  );
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  const unloadCurrentSound = async (): Promise<void> => {
+    if (!soundRef.current) {
+      return;
+    }
+
+    try {
+      await soundRef.current.unloadAsync();
+    } catch {
+      // No-op: sound may already be released by native layer.
+    }
+    soundRef.current = null;
+  };
+
+  const formatAudioDuration = (durationSec?: number): string => {
+    if (!durationSec || durationSec <= 0) {
+      return "0:00";
+    }
+
+    const minutes = Math.floor(durationSec / 60);
+    const seconds = durationSec % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  };
+
+  const toggleAudioPlayback = async (
+    messageId: string | number,
+    audioUrl: string,
+  ): Promise<void> => {
+    try {
+      if (playingMessageId === messageId && soundRef.current) {
+        await soundRef.current.stopAsync();
+        await unloadCurrentSound();
+        setPlayingMessageId(null);
+        return;
+      }
+
+      await unloadCurrentSound();
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUrl },
+        { shouldPlay: true },
+      );
+
+      soundRef.current = sound;
+      setPlayingMessageId(messageId);
+
+      sound.setOnPlaybackStatusUpdate((status: AVPlaybackStatus) => {
+        if (!status.isLoaded) {
+          return;
+        }
+
+        if (status.didJustFinish) {
+          void unloadCurrentSound();
+          setPlayingMessageId(null);
+        }
+      });
+    } catch (error) {
+      console.log("Ошибка воспроизведения аудио:", error);
+      setPlayingMessageId(null);
+    }
+  };
 
   useEffect(() => {
     if (isLoadingInitialMessages !== false) {
@@ -75,6 +141,12 @@ export const Midler: FC<MidlerProps> = ({
     // поэтому сбрасываем lock после завершения запроса.
     topRequestLockedRef.current = false;
   }, [isLoadingOlderMessages]);
+
+  useEffect(() => {
+    return () => {
+      void unloadCurrentSound();
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -151,6 +223,21 @@ export const Midler: FC<MidlerProps> = ({
                 />
               ) : null}
 
+              {msg.media?.type === "audio" && msg.media.url ? (
+                <TouchableOpacity
+                  style={styles.audioCard}
+                  onPress={() => void toggleAudioPlayback(msg.id, msg.media!.url!)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.audioCardIcon}>
+                    {playingMessageId === msg.id ? "■" : "▶"}
+                  </Text>
+                  <Text style={styles.audioCardText}>
+                    Голосовое • {formatAudioDuration(msg.media.durationSec)}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
               {/* Текст сообщения */}
               {msg.text ? (
                 <Text style={styles.bubbleText}>{msg.text}</Text>
@@ -210,6 +297,28 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 8,
     backgroundColor: "#1d2430",
+  },
+  audioCard: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(10, 18, 30, 0.35)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  audioCardIcon: {
+    color: "#fff",
+    fontSize: 18,
+    marginRight: 10,
+    width: 16,
+    textAlign: "center",
+  },
+  audioCardText: {
+    color: "#f2f7ff",
+    fontSize: 14,
   },
   authorText: {
     fontSize: 12, // Маленький шрифт для автора

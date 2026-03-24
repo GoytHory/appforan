@@ -8,6 +8,8 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Header } from "./Header";
 import { Bottom } from "./Bottom";
@@ -18,7 +20,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 import { COLORS } from "../constants/colors";
 import { MainScreenProps } from "../types";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { uploadImageToServer } from "../utils/api";
+import { uploadAudioToServer, uploadImageToServer } from "../utils/api";
 
 /**
  * MainScreen — главный экран приложения с чатом.
@@ -68,6 +70,8 @@ const MainScreen: FC<MainScreenProps> = ({
 
   // Состояние: текущий текст в поле ввода
   const [inputText, setInputText] = useState<string>("");
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isRecordingAudio, setIsRecordingAudio] = useState<boolean>(false);
 
   /**
    * Функция отправки сообщения
@@ -140,6 +144,7 @@ const MainScreen: FC<MainScreenProps> = ({
         activeChatId,
         {
           type: "image",
+          objectKey: uploaded.objectKey,
           url: uploaded.url,
           mimeType: asset.mimeType || "image/jpeg",
         },
@@ -161,6 +166,113 @@ const MainScreen: FC<MainScreenProps> = ({
       { text: "Галерея", onPress: () => void sendImage(false) },
       { text: "Отмена", style: "cancel" },
     ]);
+  };
+
+  const startAudioRecording = async (): Promise<void> => {
+    if (!activeChatId) {
+      Alert.alert("Чат не выбран", "Сначала выбери чат");
+      return;
+    }
+
+    const permission = await Audio.requestPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Нет доступа", "Нужен доступ к микрофону");
+      return;
+    }
+
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const created = new Audio.Recording();
+      await created.prepareToRecordAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY,
+      );
+      await created.startAsync();
+
+      setRecording(created);
+      setIsRecordingAudio(true);
+    } catch (error) {
+      console.log("Ошибка старта записи:", error);
+      Alert.alert("Ошибка", "Не удалось начать запись");
+      setRecording(null);
+      setIsRecordingAudio(false);
+    }
+  };
+
+  const stopAudioRecordingAndSend = async (): Promise<void> => {
+    if (!recording) {
+      return;
+    }
+
+    try {
+      await recording.stopAndUnloadAsync();
+      const status = await recording.getStatusAsync();
+      const uri = recording.getURI();
+
+      setRecording(null);
+      setIsRecordingAudio(false);
+
+      if (!uri) {
+        Alert.alert("Ошибка", "Не удалось получить аудио файл");
+        return;
+      }
+
+      const token = await AsyncStorage.getItem("auth_token");
+      if (!token) {
+        Alert.alert("Сессия истекла", "Войди заново");
+        return;
+      }
+
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      if (!base64) {
+        Alert.alert("Ошибка", "Не удалось прочитать аудио файл");
+        return;
+      }
+
+      const uploaded = await uploadAudioToServer(token, {
+        base64,
+        mimeType: "audio/mp4",
+        durationSec:
+          typeof status.durationMillis === "number"
+            ? Math.round(status.durationMillis / 1000)
+            : undefined,
+      });
+
+      handleSendMedia(
+        activeChatId,
+        {
+          type: "audio",
+          objectKey: uploaded.objectKey,
+          url: uploaded.url,
+          mimeType: uploaded.mimeType || "audio/mp4",
+          durationSec: uploaded.durationSec,
+        },
+        inputText.trim() || undefined,
+      );
+
+      if (inputText.trim()) {
+        setInputText("");
+      }
+    } catch (error) {
+      console.log("Ошибка завершения записи:", error);
+      Alert.alert("Ошибка", "Не удалось отправить голосовое");
+      setRecording(null);
+      setIsRecordingAudio(false);
+    }
+  };
+
+  const toggleAudioRecording = (): void => {
+    if (isRecordingAudio) {
+      void stopAudioRecordingAndSend();
+      return;
+    }
+
+    void startAudioRecording();
   };
 
   return (
@@ -200,6 +312,8 @@ const MainScreen: FC<MainScreenProps> = ({
         onTextChange={setInputText}
         onSend={onSend}
         onOpenMediaPicker={openMediaPicker}
+        onToggleAudioRecording={toggleAudioRecording}
+        isRecordingAudio={isRecordingAudio}
       />
 
       {/* Android отступ для клавиатуры */}
