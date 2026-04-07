@@ -1,12 +1,5 @@
 import React, { FC, useState } from "react";
-import {
-  View,
-  Modal,
-  TouchableOpacity,
-  Text,
-  Platform,
-  Alert,
-} from "react-native";
+import { View, Modal, TouchableOpacity, Text, Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +13,7 @@ import { COLORS } from "../constants/colors";
 import { MainScreenProps } from "../types";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { uploadAudioToServer, uploadImageToServer } from "../utils/api";
+import { showActions, showInfo } from "../utils/dialog";
 
 const getExpoAudioModule = (): { Audio: any } | null => {
   try {
@@ -94,7 +88,7 @@ const MainScreen: FC<MainScreenProps> = ({
 
   const sendImage = async (fromCamera: boolean): Promise<void> => {
     if (!activeChatId) {
-      Alert.alert("Чат не выбран", "Сначала выбери чат");
+      showInfo("Чат не выбран", "Сначала выбери чат");
       return;
     }
 
@@ -104,7 +98,7 @@ const MainScreen: FC<MainScreenProps> = ({
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
-        Alert.alert(
+        showInfo(
           "Нет доступа",
           fromCamera ? "Нужен доступ к камере" : "Нужен доступ к галерее",
         );
@@ -131,13 +125,13 @@ const MainScreen: FC<MainScreenProps> = ({
 
       const asset = pickerResult.assets[0];
       if (!asset.base64) {
-        Alert.alert("Ошибка", "Не удалось прочитать изображение");
+        showInfo("Ошибка", "Не удалось прочитать изображение");
         return;
       }
 
       const token = await AsyncStorage.getItem("auth_token");
       if (!token) {
-        Alert.alert("Сессия истекла", "Войди заново");
+        showInfo("Сессия истекла", "Войди заново");
         return;
       }
 
@@ -163,12 +157,12 @@ const MainScreen: FC<MainScreenProps> = ({
       }
     } catch (error) {
       console.log("Ошибка отправки изображения:", error);
-      Alert.alert("Ошибка", "Не удалось отправить изображение");
+      showInfo("Ошибка", "Не удалось отправить изображение");
     }
   };
 
   const openMediaPicker = (): void => {
-    Alert.alert("Отправка фото", "Выбери источник изображения", [
+    showActions("Отправка фото", "Выбери источник изображения", [
       { text: "Камера", onPress: () => void sendImage(true) },
       { text: "Галерея", onPress: () => void sendImage(false) },
       { text: "Отмена", style: "cancel" },
@@ -177,13 +171,13 @@ const MainScreen: FC<MainScreenProps> = ({
 
   const startAudioRecording = async (): Promise<void> => {
     if (!activeChatId) {
-      Alert.alert("Чат не выбран", "Сначала выбери чат");
+      showInfo("Чат не выбран", "Сначала выбери чат");
       return;
     }
 
     const expoAudio = getExpoAudioModule();
     if (!expoAudio?.Audio) {
-      Alert.alert(
+      showInfo(
         "Голосовые недоступны",
         "В этом клиенте нет native-модуля expo-av. Открой через Expo Go или пересобери Dev Client.",
       );
@@ -192,7 +186,7 @@ const MainScreen: FC<MainScreenProps> = ({
 
     const permission = await expoAudio.Audio.requestPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert("Нет доступа", "Нужен доступ к микрофону");
+      showInfo("Нет доступа", "Нужен доступ к микрофону");
       return;
     }
 
@@ -212,7 +206,7 @@ const MainScreen: FC<MainScreenProps> = ({
       setIsRecordingAudio(true);
     } catch (error) {
       console.log("Ошибка старта записи:", error);
-      Alert.alert("Ошибка", "Не удалось начать запись");
+      showInfo("Ошибка", "Не удалось начать запись");
       setRecording(null);
       setIsRecordingAudio(false);
     }
@@ -250,13 +244,13 @@ const MainScreen: FC<MainScreenProps> = ({
       setIsRecordingAudio(false);
 
       if (!uri) {
-        Alert.alert("Ошибка", "Не удалось получить аудио файл");
+        showInfo("Ошибка", "Не удалось получить аудио файл");
         return;
       }
 
       const token = await AsyncStorage.getItem("auth_token");
       if (!token) {
-        Alert.alert("Сессия истекла", "Войди заново");
+        showInfo("Сессия истекла", "Войди заново");
         return;
       }
 
@@ -264,7 +258,7 @@ const MainScreen: FC<MainScreenProps> = ({
         encoding: FileSystem.EncodingType.Base64,
       });
       if (!base64) {
-        Alert.alert("Ошибка", "Не удалось прочитать аудио файл");
+        showInfo("Ошибка", "Не удалось прочитать аудио файл");
         return;
       }
 
@@ -294,7 +288,7 @@ const MainScreen: FC<MainScreenProps> = ({
       }
     } catch (error) {
       console.log("Ошибка завершения записи:", error);
-      Alert.alert("Ошибка", "Не удалось отправить голосовое");
+      showInfo("Ошибка", "Не удалось отправить голосовое");
       setRecording(null);
       setIsRecordingAudio(false);
     }
@@ -321,7 +315,7 @@ const MainScreen: FC<MainScreenProps> = ({
         isDirectChat={currentChatIsDirect}
         onPressTitle={() => {
           if (currentParticipantUserId) {
-            Alert.alert("Скоро", "Здесь откроется профиль собеседника");
+            showInfo("Скоро", "Здесь откроется профиль собеседника");
           }
         }}
         onOpenProfile={() => setIsProfileOpen(true)} // Открытие профиля

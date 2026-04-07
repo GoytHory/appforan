@@ -6,13 +6,13 @@ import {
   Image,
   StyleSheet,
   TextInput,
-  Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { COLORS } from "../constants/colors";
 import { ProfileScreenProps } from "../types";
 import { getMe, updateMyAvatar, uploadImageToServer } from "../utils/api";
+import { showConfirm, showInfo } from "../utils/dialog";
 
 /**
  * ProfileScreen — экран профиля пользователя.
@@ -81,7 +81,7 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
     const { status: permStatus } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permStatus !== "granted") {
-      Alert.alert("Ошибка", "Нужен доступ к фото!");
+      showInfo("Ошибка", "Нужен доступ к фото!");
       return;
     }
 
@@ -99,7 +99,7 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
 
     const asset = result.assets[0];
     if (!asset.base64) {
-      Alert.alert("Ошибка", "Не удалось прочитать изображение");
+      showInfo("Ошибка", "Не удалось прочитать изображение");
       return;
     }
 
@@ -107,7 +107,7 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
       setIsSavingAvatar(true);
       const token = await AsyncStorage.getItem("auth_token");
       if (!token) {
-        Alert.alert("Сессия истекла", "Войди заново");
+        showInfo("Сессия истекла", "Войди заново");
         return;
       }
 
@@ -120,10 +120,10 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
       const { user } = await updateMyAvatar(token, uploaded.objectKey);
       setAvatar(user.avatar || uploaded.url);
       setStatus(user.status || "offline");
-      Alert.alert("Готово", "Аватар обновлён");
+      showInfo("Готово", "Аватар обновлён");
     } catch (e) {
       console.log("Ошибка загрузки аватара:", e);
-      Alert.alert("Ошибка", "Не удалось загрузить аватар");
+      showInfo("Ошибка", "Не удалось загрузить аватар");
     } finally {
       setIsSavingAvatar(false);
     }
@@ -160,24 +160,23 @@ const ProfileScreen: FC<ProfileScreenProps> = ({
       {/* КНОПКА НАСТРОЕК (заглушка) */}
       <TouchableOpacity
         style={styles.btn}
-        onPress={() => Alert.alert("Настройки", "Тут будут темы оформления")}
+        onPress={() => showInfo("Настройки", "Тут будут темы оформления")}
       >
         <Text style={styles.btnText}>Настройки оформления</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.btn, { backgroundColor: "#b43a3a", marginTop: 12 }]}
-        onPress={() =>
-          Alert.alert("Выход", "Выйти из аккаунта?", [
-            { text: "Отмена", style: "cancel" },
-            {
-              text: "Выйти",
-              style: "destructive",
-              onPress: () => {
-                void logout();
-              },
+        onPress={() => {
+          showConfirm({
+            title: "Выход",
+            message: "Выйти из аккаунта?",
+            confirmText: "Выйти",
+            cancelText: "Отмена",
+            onConfirm: () => {
+              void logout();
             },
-          ])
-        }
+          });
+        }}
       >
         <Text style={styles.btnText}>Выйти из аккаунта</Text>
       </TouchableOpacity>

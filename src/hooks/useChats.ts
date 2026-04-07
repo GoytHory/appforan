@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { ScrollView } from "react-native";
+import { AppState, AppStateStatus, ScrollView } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import socket, { connectSocket, disconnectSocket } from "../utils/socket";
 import {
@@ -22,6 +22,7 @@ import {
 
 const BASE_CHATS: ChatState = {};
 const PAGE_SIZE = 50;
+type PresenceAppState = "active" | "background";
 
 const formatTime = (value?: string | number | Date): string => {
   if (!value) {
@@ -160,6 +161,24 @@ export function useChats(
   useEffect(() => {
     activeIdRef.current = activeChatId;
   }, [activeChatId]);
+
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  const emitPresence = useCallback((): void => {
+    if (!socket.connected || !myUsername) {
+      return;
+    }
+
+    const normalizedState: PresenceAppState =
+      appStateRef.current === "active" ? "active" : "background";
+
+    socket.emit("presence:update", {
+      appState: normalizedState,
+      activeChatId:
+        normalizedState === "active" ? activeIdRef.current || null : null,
+      at: Date.now(),
+    });
+  }, [myUsername]);
 
   const ensureToken = useCallback(async (): Promise<string> => {
     if (tokenRef.current) {
@@ -536,6 +555,8 @@ export function useChats(
       if (activeIdRef.current) {
         socket.emit("joinChat", activeIdRef.current);
       }
+
+      emitPresence();
     };
 
     const handleConnectError = (error: Error) => {
@@ -552,7 +573,7 @@ export function useChats(
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleConnectError);
     };
-  }, [myUsername, onAuthFailure]);
+  }, [myUsername, onAuthFailure, emitPresence]);
 
   // 2. HEARTBEAT: Периодический пинг для обновления активности на сервере
   // Запускается независимо от socket.connected, потому что сокет может еще не подключиться
@@ -565,13 +586,29 @@ export function useChats(
     const heartbeatInterval = setInterval(() => {
       if (socket.connected) {
         socket.emit("ping");
+        emitPresence();
       }
     }, 10000);
 
     return () => {
       clearInterval(heartbeatInterval);
     };
-  }, [myUsername]);
+  }, [myUsername, emitPresence]);
+
+  useEffect(() => {
+    if (!myUsername) {
+      return;
+    }
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+      emitPresence();
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [myUsername, emitPresence]);
 
   useEffect(() => {
     const initDirectChats = async (): Promise<void> => {
@@ -741,8 +778,9 @@ export function useChats(
 
     socket.emit("joinChat", activeChatId);
     joinedChatIdRef.current = activeChatId;
+    emitPresence();
     void loadChatHistory(activeChatId);
-  }, [activeChatId, myUsername, loadChatHistory]);
+  }, [activeChatId, myUsername, loadChatHistory, emitPresence]);
 
   const handleSend = (
     inputText: string,

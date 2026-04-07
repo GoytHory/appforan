@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "219957208429",
+    "project_id": "appforan",
+    "storage_bucket": "appforan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:219957208429:android:14a3af1bcbde214172e664",
+        "android_client_info": {
+          "package_name": "com.goyt.appforan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM-h02D6z-UKBoyzaMveZ3LMtUTbEGUN8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

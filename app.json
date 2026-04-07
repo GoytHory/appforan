@@ -6,12 +6,12 @@
     },
     "name": "appforan",
     "slug": "appforan_v2",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#272d31"
     },
@@ -20,19 +20,23 @@
     },
     "android": {
       "googleServicesFile": "./google-services.json",
+      "permissions": ["POST_NOTIFICATIONS"],
       "adaptiveIcon": {
         "backgroundColor": "#272d31",
         "foregroundImage": "./assets/icon.png",
         "backgroundImage": "./assets/icon.png",
-        "monochromeImage": "./assets/icon.png"
+        "monochromeImage": "./assets/mono.png"
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.goyt.appforan"
     },
     "web": {
-      "favicon": "./assets/icon.png"
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
+      "runtimeDiagnostics": {
+        "buildLabel": "push-firebase-fix-2026-03-25-02"
+      },
       "eas": {
         "projectId": "683dda8b-e18d-415a-8bdf-39561a4f6108"
       }
